@@ -1,4 +1,5 @@
 use crate::error::{Error, Result};
+use crate::events::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event::Event;
 use crate::events::event_handler::EventHandler;
 use crate::ipc::client::IPCClient;
@@ -29,8 +30,21 @@ pub struct IPCBuilder {
 
 impl IPCBuilder {
     pub fn new() -> Self {
+        let mut handler = EventHandler::new();
+        handler.on(ERROR_EVENT_NAME, |_, event| {
+            Box::pin(async move {
+                let error_data = event.data::<ErrorEventData>()?;
+                log::warn!(
+                    "Received Error Response from Server: {} - {}",
+                    error_data.code,
+                    error_data.message
+                );
+
+                Ok(())
+            })
+        });
         Self {
-            handler: EventHandler::new(),
+            handler,
             address: None,
         }
     }

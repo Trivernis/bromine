@@ -1,4 +1,5 @@
 use crate::error::Result;
+use crate::events::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event::Event;
 use crate::events::event_handler::EventHandler;
 use crate::ipc::context::Context;
@@ -39,6 +40,20 @@ impl IPCServer {
 
         while let Ok(event) = Event::from_async_read(&mut read_half).await {
             if let Err(e) = handler.handle_event(&ctx, event).await {
+                // emit an error event
+                if emitter
+                    .emit(
+                        ERROR_EVENT_NAME,
+                        ErrorEventData {
+                            message: format!("{:?}", e),
+                            code: 500,
+                        },
+                    )
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
                 log::error!("Failed to handle event: {:?}", e);
             }
         }

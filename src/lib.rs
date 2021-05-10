@@ -38,6 +38,7 @@ pub mod error;
 mod events;
 mod ipc;
 
+pub use events::error_event;
 pub use events::event::Event;
 pub use ipc::builder::IPCBuilder;
 pub use ipc::*;
