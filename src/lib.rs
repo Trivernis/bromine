@@ -1,9 +1,11 @@
 //! This project provides an ipc server and client implementation using
 //! messagepack. All calls are asynchronous and event based.
 //! Client Example:
-//! ```rust
+//! ```no_run
 //! use rmp_ipc::IPCBuilder;
 //! // create the client
+//! # async fn a() {
+//!
 //! let emitter = IPCBuilder::new()
 //!     .address("127.0.0.1:2020")
 //!     // register callback
@@ -14,13 +16,15 @@
 //!     .build_client().await.unwrap();
 //!
 //! // emit an initial event
-//! emitter.emit("ping", ()).await?;
+//! emitter.emit("ping", ()).await.unwrap();
+//! # }
 //! ```
 //!
 //! Server Example:
-//! ```rust
+//! ```no_run
 //! use rmp_ipc::IPCBuilder;
 //! // create the server
+//!# async fn a() {
 //! IPCBuilder::new()
 //!     .address("127.0.0.1:2020")
 //!     // register callback
@@ -29,6 +33,7 @@
 //!         Ok(())
 //!     }))
 //!     .build_server().await.unwrap();
+//! # }
 //! ```
 
 #[cfg(test)]
