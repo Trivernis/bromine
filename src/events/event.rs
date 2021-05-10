@@ -1,4 +1,5 @@
 use crate::error::Result;
+use crate::events::generate_event_id;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -8,14 +9,21 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 /// as raw binary data.
 #[derive(Serialize, Deserialize)]
 pub struct Event {
+    id: u64,
+    ref_id: Option<u64>,
     name: String,
     data: Vec<u8>,
 }
 
 impl Event {
     /// Creates a new event
-    pub fn new(name: String, data: Vec<u8>) -> Self {
-        Self { name, data }
+    pub fn new(name: String, data: Vec<u8>, ref_id: Option<u64>) -> Self {
+        Self {
+            id: generate_event_id(),
+            ref_id,
+            name,
+            data,
+        }
     }
 
     /// Decodes the data to the given type
