@@ -1,6 +1,6 @@
 # rmp-ipc
 
-Interprocess Communication via TCP using Rust Message Pack.
+Interprocess Communication via TCP using Rust MessagePack.
 
 ## Usage
 
