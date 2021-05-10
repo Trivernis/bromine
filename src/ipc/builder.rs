@@ -9,6 +9,19 @@ use std::future::Future;
 use std::pin::Pin;
 
 #[derive(Clone)]
+/// A builder for the IPC server or client.
+/// ```rust
+///use rmp_ipc::IPCBuilder;
+///IPCBuilder::new()
+///     .address("127.0.0.1:2020")
+///    // register callback
+///     .on("ping", |_ctx, _event| Box::pin(async move {
+///         println!("Received ping event.");
+///         Ok(())
+///     }))
+///     // can also be build_client which would return an emitter for events
+///     .build_server().await.unwrap();
+/// ```
 pub struct IPCBuilder {
     handler: EventHandler,
     address: Option<String>,
