@@ -1,6 +1,7 @@
 use self::super::utils::PingEventData;
 use crate::error::Error;
 use crate::events::error_event::ErrorEventData;
+use crate::tests::utils::start_test_server;
 use crate::IPCBuilder;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -95,4 +96,34 @@ async fn it_handles_errors() {
 
     tokio::time::sleep(Duration::from_secs(1)).await;
     assert!(error_occurred.load(Ordering::SeqCst));
+}
+
+#[tokio::test]
+async fn test_error_responses() {
+    static ADDRESS: &str = "127.0.0.1:8284";
+    start_test_server(ADDRESS).await.unwrap();
+    let ctx = IPCBuilder::new()
+        .address(ADDRESS)
+        .build_client()
+        .await
+        .unwrap();
+    let reply = ctx
+        .emitter
+        .emit("ping", ())
+        .await
+        .unwrap()
+        .await_reply(&ctx)
+        .await
+        .unwrap();
+    assert_eq!(reply.name(), "pong");
+
+    let reply = ctx
+        .emitter
+        .emit("trigger_error", ())
+        .await
+        .unwrap()
+        .await_reply(&ctx)
+        .await
+        .unwrap();
+    assert_eq!(reply.name(), "error");
 }

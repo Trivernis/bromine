@@ -33,11 +33,13 @@ async fn handle_connection(handler: Arc<EventHandler>, mut read_half: OwnedReadH
 /// Handles a single event in a different tokio context
 fn handle_event(ctx: Context, handler: Arc<EventHandler>, event: Event) {
     tokio::spawn(async move {
+        let id = event.id();
         if let Err(e) = handler.handle_event(&ctx, event).await {
             // emit an error event
             if let Err(e) = ctx
                 .emitter
-                .emit(
+                .emit_response(
+                    id,
                     ERROR_EVENT_NAME,
                     ErrorEventData {
                         message: format!("{:?}", e),
