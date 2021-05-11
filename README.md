@@ -8,7 +8,7 @@ Interprocess Communication via TCP using Rust MessagePack.
 ```rust
 use rmp_ipc::IPCBuilder;
 // create the client
-let emitter = IPCBuilder::new()
+let ctx = IPCBuilder::new()
     .address("127.0.0.1:2020")
     // register callback
     .on("ping", |_ctx, _event| Box::pin(async move {
@@ -18,7 +18,7 @@ let emitter = IPCBuilder::new()
     .build_client().await.unwrap();
 
 // emit an initial event
-emitter.emit("ping", ()).await?;
+let response = ctx.emitter.emit("ping", ()).await?.await_response(&ctx).await?;
 ```
 
 **Server:**
