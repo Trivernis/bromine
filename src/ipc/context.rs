@@ -14,6 +14,7 @@ use crate::ipc::stream_emitter::StreamEmitter;
 ///     Ok(())
 /// }
 /// ```
+#[derive(Clone)]
 pub struct Context {
     /// The event emitter
     pub emitter: StreamEmitter,
