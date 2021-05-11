@@ -1,12 +1,12 @@
 [package]
 name = "rmp-ipc"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 readme = "README.md"
 license = "Apache-2.0"
 repository = "https://github.com/Trivernis/rmp-ipc"
-description = "IPC using Rust Message Pack (rmp)"
+description = "IPC using Rust MessagePack (rmp)"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,6 +14,7 @@ description = "IPC using Rust Message Pack (rmp)"
 thiserror = "1.0.24"
 rmp-serde = "0.15.4"
 log = "0.4.14"
+lazy_static = "1.4.0"
 
 [dependencies.serde]
 version = "1.0.125"

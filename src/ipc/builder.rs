@@ -5,15 +5,15 @@ use crate::events::event_handler::EventHandler;
 use crate::ipc::client::IPCClient;
 use crate::ipc::context::Context;
 use crate::ipc::server::IPCServer;
-use crate::ipc::stream_emitter::StreamEmitter;
 use std::future::Future;
 use std::pin::Pin;
 
 #[derive(Clone)]
 /// A builder for the IPC server or client.
-/// ```rust
+/// ```no_run
 ///use rmp_ipc::IPCBuilder;
-///IPCBuilder::new()
+///# async fn a() {
+/// IPCBuilder::new()
 ///     .address("127.0.0.1:2020")
 ///    // register callback
 ///     .on("ping", |_ctx, _event| Box::pin(async move {
@@ -22,6 +22,7 @@ use std::pin::Pin;
 ///     }))
 ///     // can also be build_client which would return an emitter for events
 ///     .build_server().await.unwrap();
+///# }
 /// ```
 pub struct IPCBuilder {
     handler: EventHandler,
@@ -83,15 +84,15 @@ impl IPCBuilder {
     }
 
     /// Builds an ipc client
-    pub async fn build_client(self) -> Result<StreamEmitter> {
+    pub async fn build_client(self) -> Result<Context> {
         self.validate()?;
         let client = IPCClient {
             handler: self.handler,
         };
 
-        let emitter = client.connect(&self.address.unwrap()).await?;
+        let ctx = client.connect(&self.address.unwrap()).await?;
 
-        Ok(emitter)
+        Ok(ctx)
     }
 
     /// Validates that all required fields have been provided
