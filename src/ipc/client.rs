@@ -16,17 +16,20 @@ pub struct IPCClient {
 impl IPCClient {
     /// Connects to a given address and returns an emitter for events to that address.
     /// Invoked by [IPCBuilder::build_client](crate::builder::IPCBuilder::build_client)
-    pub async fn connect(self, address: &str) -> Result<StreamEmitter> {
+    pub async fn connect(self, address: &str) -> Result<Context> {
         let stream = TcpStream::connect(address).await?;
         let (read_half, write_half) = stream.into_split();
         let emitter = StreamEmitter::new(write_half);
         let ctx = Context::new(StreamEmitter::clone(&emitter));
         let handler = Arc::new(self.handler);
 
-        tokio::spawn(async move {
-            handle_connection(handler, read_half, ctx).await;
+        tokio::spawn({
+            let ctx = Context::clone(&ctx);
+            async move {
+                handle_connection(handler, read_half, ctx).await;
+            }
         });
 
-        Ok(emitter)
+        Ok(ctx)
     }
 }

@@ -65,4 +65,15 @@ impl Event {
 
         Ok(event_bytes)
     }
+
+    /// The identifier of the message
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
+    /// The ID of the message referenced by this message.
+    /// It represents the message that is replied to and can be None.
+    pub fn reference_id(&self) -> Option<u64> {
+        self.ref_id.clone()
+    }
 }

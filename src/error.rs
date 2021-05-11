@@ -1,4 +1,5 @@
 use thiserror::Error;
+use tokio::sync::oneshot;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -18,6 +19,9 @@ pub enum Error {
 
     #[error("{0}")]
     Message(String),
+
+    #[error("Channel Error: {0}")]
+    ReceiveError(#[from] oneshot::error::RecvError),
 }
 
 impl From<String> for Error {

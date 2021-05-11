@@ -6,17 +6,19 @@
 //! // create the client
 //! # async fn a() {
 //!
-//! let emitter = IPCBuilder::new()
+//! let ctx = IPCBuilder::new()
 //!     .address("127.0.0.1:2020")
 //!     // register callback
-//!     .on("ping", |_ctx, _event| Box::pin(async move {
+//!     .on("ping", |ctx, event| Box::pin(async move {
 //!         println!("Received ping event.");
+//!         ctx.emitter.emit_response(event.id(), "pong", ()).await?;
 //!         Ok(())
 //!     }))
 //!     .build_client().await.unwrap();
 //!
 //! // emit an initial event
-//! emitter.emit("ping", ()).await.unwrap();
+//! let response = ctx.emitter.emit("ping", ()).await.unwrap().await_reply(&ctx).await.unwrap();
+//! assert_eq!(response.name(), "pong");
 //! # }
 //! ```
 //!
@@ -28,8 +30,9 @@
 //! IPCBuilder::new()
 //!     .address("127.0.0.1:2020")
 //!     // register callback
-//!     .on("ping", |_ctx, _event| Box::pin(async move {
+//!     .on("ping", |ctx, event| Box::pin(async move {
 //!         println!("Received ping event.");
+//!         ctx.emitter.emit_response(event.id(), "pong", ()).await?;
 //!         Ok(())
 //!     }))
 //!     .build_server().await.unwrap();

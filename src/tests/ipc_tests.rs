@@ -2,26 +2,22 @@ use self::super::utils::PingEventData;
 use crate::error::Error;
 use crate::events::error_event::ErrorEventData;
 use crate::IPCBuilder;
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 #[tokio::test]
 async fn it_receives_events() {
-    let ctr = Arc::new(AtomicU8::new(0));
     let builder = IPCBuilder::new()
         .on("ping", {
-            let ctr = Arc::clone(&ctr);
             move |ctx, e| {
-                let ctr = Arc::clone(&ctr);
                 Box::pin(async move {
-                    ctr.fetch_add(1, Ordering::Relaxed);
                     let mut ping_data = e.data::<PingEventData>()?;
                     ping_data.time = SystemTime::now();
                     ping_data.ttl -= 1;
 
                     if ping_data.ttl > 0 {
-                        ctx.emitter.emit("ping", ping_data).await?;
+                        ctx.emitter.emit_response(e.id(), "pong", ping_data).await?;
                     }
 
                     Ok(())
@@ -41,8 +37,9 @@ async fn it_receives_events() {
     while !server_running.load(Ordering::Relaxed) {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
-    let client = builder.build_client().await.unwrap();
-    client
+    let ctx = builder.build_client().await.unwrap();
+    let reply = ctx
+        .emitter
         .emit(
             "ping",
             PingEventData {
@@ -51,9 +48,11 @@ async fn it_receives_events() {
             },
         )
         .await
+        .unwrap()
+        .await_reply(&ctx)
+        .await
         .unwrap();
-    tokio::time::sleep(Duration::from_secs(1)).await;
-    assert_eq!(ctr.load(Ordering::SeqCst), 16);
+    assert_eq!(reply.name(), "pong");
 }
 
 #[tokio::test]
@@ -91,8 +90,8 @@ async fn it_handles_errors() {
     while !server_running.load(Ordering::Relaxed) {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
-    let client = builder.build_client().await.unwrap();
-    client.emit("ping", ()).await.unwrap();
+    let ctx = builder.build_client().await.unwrap();
+    ctx.emitter.emit("ping", ()).await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
     assert!(error_occurred.load(Ordering::SeqCst));

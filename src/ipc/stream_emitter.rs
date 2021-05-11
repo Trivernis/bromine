@@ -1,3 +1,4 @@
+use crate::context::Context;
 use crate::error::Result;
 use crate::events::event::Event;
 use serde::Serialize;
@@ -26,7 +27,7 @@ impl StreamEmitter {
         event: &str,
         data: T,
         res_id: Option<u64>,
-    ) -> Result<()> {
+    ) -> Result<EmitMetadata> {
         let data_bytes = rmp_serde::to_vec(&data)?;
         let event = Event::new(event.to_string(), data_bytes, res_id);
         let event_bytes = event.to_bytes()?;
@@ -35,14 +36,14 @@ impl StreamEmitter {
             (*stream).write_all(&event_bytes[..]).await?;
         }
 
-        Ok(())
+        Ok(EmitMetadata::new(event.id()))
     }
 
     /// Emits an event
-    pub async fn emit<T: Serialize>(&self, event: &str, data: T) -> Result<()> {
-        self._emit(event, data, None).await?;
+    pub async fn emit<T: Serialize>(&self, event: &str, data: T) -> Result<EmitMetadata> {
+        let metadata = self._emit(event, data, None).await?;
 
-        Ok(())
+        Ok(metadata)
     }
 
     /// Emits a response to an event
@@ -51,9 +52,32 @@ impl StreamEmitter {
         event_id: u64,
         event: &str,
         data: T,
-    ) -> Result<()> {
-        self._emit(event, data, Some(event_id)).await?;
+    ) -> Result<EmitMetadata> {
+        let metadata = self._emit(event, data, Some(event_id)).await?;
 
-        Ok(())
+        Ok(metadata)
+    }
+}
+
+/// A metadata object returned after emitting an event.
+/// This object can be used to wait for a response to an event.
+pub struct EmitMetadata {
+    message_id: u64,
+}
+
+impl EmitMetadata {
+    pub(crate) fn new(message_id: u64) -> Self {
+        Self { message_id }
+    }
+
+    /// The ID of the emitted message
+    pub fn message_id(&self) -> u64 {
+        self.message_id
+    }
+
+    /// Waits for a reply to the given message.
+    pub async fn await_reply(&self, ctx: &Context) -> Result<Event> {
+        let reply = ctx.await_reply(self.message_id).await?;
+        Ok(reply)
     }
 }
