@@ -31,7 +31,15 @@
 //!
 //! Server Example:
 //! ```no_run
+//! use typemap_rev::TypeMapKey;
 //! use rmp_ipc::IPCBuilder;
+//!
+//! struct MyKey;
+//!
+//! impl TypeMapKey for MyKey {
+//!     type Value = u32;
+//! }
+//!
 //! // create the server
 //!# async fn a() {
 //! IPCBuilder::new()
@@ -45,10 +53,18 @@
 //!     .namespace("mainspace-server")
 //!     .on("do-something", |ctx, event| Box::pin(async move {
 //!         println!("Doing something");
+//!         {
+//!             // access data
+//!             let mut data = ctx.data.write().await;
+//!             let mut my_key = data.get_mut::<MyKey>().unwrap();
+//!             my_key += 1;
+//!         }
 //!         ctx.emitter.emit_response_to(event.id(), "mainspace-client", "something", ()).await?;
 //!         Ok(())
 //!     }))
 //!     .build()
+//!     // store additional data
+//!     .insert::<MyKey>(3)
 //!     .build_server().await.unwrap();
 //! # }
 //! ```

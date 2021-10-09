@@ -10,11 +10,19 @@ use crate::namespaces::namespace::Namespace;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use typemap_rev::{TypeMap, TypeMapKey};
 
-#[derive(Clone)]
 /// A builder for the IPC server or client.
 /// ```no_run
-///use rmp_ipc::IPCBuilder;
+///use typemap_rev::TypeMapKey;
+/// use rmp_ipc::IPCBuilder;
+///
+/// struct CustomKey;
+///
+/// impl TypeMapKey for CustomKey {
+///     type Value = String;
+/// }
+///
 ///# async fn a() {
 /// IPCBuilder::new()
 ///     .address("127.0.0.1:2020")
@@ -23,6 +31,15 @@ use std::pin::Pin;
 ///         println!("Received ping event.");
 ///         Ok(())
 ///     }))
+///     // register a namespace    
+///     .namespace("namespace")
+///     .on("namespace-event", |_ctx, _event| Box::pin(async move {
+///         println!("Namespace event.");
+///         Ok(())
+///     }))
+///     .build()
+///     /// add context shared data
+///     .insert::<CustomKey>("Hello World".to_string())
 ///     // can also be build_client which would return an emitter for events
 ///     .build_server().await.unwrap();
 ///# }
@@ -31,6 +48,7 @@ pub struct IPCBuilder {
     handler: EventHandler,
     address: Option<String>,
     namespaces: HashMap<String, Namespace>,
+    data: TypeMap,
 }
 
 impl IPCBuilder {
@@ -52,7 +70,15 @@ impl IPCBuilder {
             handler,
             address: None,
             namespaces: HashMap::new(),
+            data: TypeMap::new(),
         }
+    }
+
+    /// Adds globally shared data
+    pub fn insert<K: TypeMapKey>(mut self, value: K::Value) -> Self {
+        self.data.insert::<K>(value);
+
+        self
     }
 
     /// Adds an event callback
@@ -96,6 +122,7 @@ impl IPCBuilder {
         let server = IPCServer {
             namespaces: self.namespaces,
             handler: self.handler,
+            data: self.data,
         };
         server.start(&self.address.unwrap()).await?;
 
@@ -108,6 +135,7 @@ impl IPCBuilder {
         let client = IPCClient {
             namespaces: self.namespaces,
             handler: self.handler,
+            data: self.data,
         };
 
         let ctx = client.connect(&self.address.unwrap()).await?;
