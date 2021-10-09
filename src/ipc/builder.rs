@@ -38,7 +38,7 @@ use typemap_rev::{TypeMap, TypeMapKey};
 ///         Ok(())
 ///     }))
 ///     .build()
-///     /// add context shared data
+///     // add context shared data
 ///     .insert::<CustomKey>("Hello World".to_string())
 ///     // can also be build_client which would return an emitter for events
 ///     .build_server().await.unwrap();

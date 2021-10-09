@@ -57,7 +57,7 @@
 //!             // access data
 //!             let mut data = ctx.data.write().await;
 //!             let mut my_key = data.get_mut::<MyKey>().unwrap();
-//!             my_key += 1;
+//!             *my_key += 1;
 //!         }
 //!         ctx.emitter.emit_response_to(event.id(), "mainspace-client", "something", ()).await?;
 //!         Ok(())
