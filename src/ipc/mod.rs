@@ -1,7 +1,9 @@
 use crate::context::Context;
 use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event_handler::EventHandler;
+use crate::namespaces::namespace::Namespace;
 use crate::Event;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::tcp::OwnedReadHalf;
 
@@ -12,7 +14,12 @@ pub mod server;
 pub mod stream_emitter;
 
 /// Handles listening to a connection and triggering the corresponding event functions
-async fn handle_connection(handler: Arc<EventHandler>, mut read_half: OwnedReadHalf, ctx: Context) {
+async fn handle_connection(
+    namespaces: Arc<HashMap<String, Namespace>>,
+    handler: Arc<EventHandler>,
+    mut read_half: OwnedReadHalf,
+    ctx: Context,
+) {
     while let Ok(event) = Event::from_async_read(&mut read_half).await {
         // check if the event is a reply
         if let Some(ref_id) = event.reference_id() {
@@ -25,7 +32,12 @@ async fn handle_connection(handler: Arc<EventHandler>, mut read_half: OwnedReadH
                 continue;
             }
         }
-        handle_event(Context::clone(&ctx), Arc::clone(&handler), event);
+        if let Some(namespace) = event.namespace().clone().and_then(|n| namespaces.get(&n)) {
+            let handler = Arc::clone(&namespace.handler);
+            handle_event(Context::clone(&ctx), handler, event);
+        } else {
+            handle_event(Context::clone(&ctx), Arc::clone(&handler), event);
+        }
     }
     log::debug!("Connection closed.");
 }

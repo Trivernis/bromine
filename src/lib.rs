@@ -14,6 +14,13 @@
 //!         ctx.emitter.emit_response(event.id(), "pong", ()).await?;
 //!         Ok(())
 //!     }))
+//!     .namespace("mainspace-client")
+//!     .on("something", |ctx, event| Box::pin(async move {
+//!         println!("I think the server did something");
+//!         ctx.emitter.emit_response_to(event.id(), "mainspace-server", "ok", ()).await?;
+//!         Ok(())
+//!     }))
+//!     .build()
 //!     .build_client().await.unwrap();
 //!
 //! // emit an initial event
@@ -35,6 +42,13 @@
 //!         ctx.emitter.emit_response(event.id(), "pong", ()).await?;
 //!         Ok(())
 //!     }))
+//!     .namespace("mainspace-server")
+//!     .on("do-something", |ctx, event| Box::pin(async move {
+//!         println!("Doing something");
+//!         ctx.emitter.emit_response_to(event.id(), "mainspace-client", "something", ()).await?;
+//!         Ok(())
+//!     }))
+//!     .build()
 //!     .build_server().await.unwrap();
 //! # }
 //! ```
@@ -45,6 +59,7 @@ mod tests;
 pub mod error;
 mod events;
 mod ipc;
+mod namespaces;
 
 pub use events::error_event;
 pub use events::event::Event;

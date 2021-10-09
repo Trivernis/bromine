@@ -5,6 +5,9 @@ use crate::events::event_handler::EventHandler;
 use crate::ipc::client::IPCClient;
 use crate::ipc::context::Context;
 use crate::ipc::server::IPCServer;
+use crate::namespaces::builder::NamespaceBuilder;
+use crate::namespaces::namespace::Namespace;
+use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -27,6 +30,7 @@ use std::pin::Pin;
 pub struct IPCBuilder {
     handler: EventHandler,
     address: Option<String>,
+    namespaces: HashMap<String, Namespace>,
 }
 
 impl IPCBuilder {
@@ -47,6 +51,7 @@ impl IPCBuilder {
         Self {
             handler,
             address: None,
+            namespaces: HashMap::new(),
         }
     }
 
@@ -72,10 +77,24 @@ impl IPCBuilder {
         self
     }
 
+    /// Adds a namespace
+    pub fn namespace<S: ToString>(self, name: S) -> NamespaceBuilder {
+        NamespaceBuilder::new(self, name.to_string())
+    }
+
+    /// Adds a namespace to the ipc server
+    pub fn add_namespace(mut self, namespace: Namespace) -> Self {
+        self.namespaces
+            .insert(namespace.name().to_owned(), namespace);
+
+        self
+    }
+
     /// Builds an ipc server
     pub async fn build_server(self) -> Result<()> {
         self.validate()?;
         let server = IPCServer {
+            namespaces: self.namespaces,
             handler: self.handler,
         };
         server.start(&self.address.unwrap()).await?;
@@ -87,6 +106,7 @@ impl IPCBuilder {
     pub async fn build_client(self) -> Result<Context> {
         self.validate()?;
         let client = IPCClient {
+            namespaces: self.namespaces,
             handler: self.handler,
         };
 

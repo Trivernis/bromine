@@ -3,6 +3,8 @@ use crate::error::Result;
 use crate::events::event_handler::EventHandler;
 use crate::ipc::context::Context;
 use crate::ipc::stream_emitter::StreamEmitter;
+use crate::namespaces::namespace::Namespace;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 
@@ -11,6 +13,7 @@ use tokio::net::TcpStream;
 /// Usually one does not need to use the IPCClient object directly.
 pub struct IPCClient {
     pub(crate) handler: EventHandler,
+    pub(crate) namespaces: HashMap<String, Namespace>,
 }
 
 impl IPCClient {
@@ -22,11 +25,12 @@ impl IPCClient {
         let emitter = StreamEmitter::new(write_half);
         let ctx = Context::new(StreamEmitter::clone(&emitter));
         let handler = Arc::new(self.handler);
+        let namespaces = Arc::new(self.namespaces);
 
         tokio::spawn({
             let ctx = Context::clone(&ctx);
             async move {
-                handle_connection(handler, read_half, ctx).await;
+                handle_connection(namespaces, handler, read_half, ctx).await;
             }
         });
 
