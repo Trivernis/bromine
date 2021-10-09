@@ -11,16 +11,34 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 pub struct Event {
     id: u64,
     ref_id: Option<u64>,
+    namespace: Option<String>,
     name: String,
     data: Vec<u8>,
 }
 
 impl Event {
+    /// Creates a new event with a namespace
+    pub fn with_namespace(
+        namespace: String,
+        name: String,
+        data: Vec<u8>,
+        ref_id: Option<u64>,
+    ) -> Self {
+        Self {
+            id: generate_event_id(),
+            ref_id,
+            namespace: Some(namespace),
+            name,
+            data,
+        }
+    }
+
     /// Creates a new event
     pub fn new(name: String, data: Vec<u8>, ref_id: Option<u64>) -> Self {
         Self {
             id: generate_event_id(),
             ref_id,
+            namespace: None,
             name,
             data,
         }
@@ -36,6 +54,11 @@ impl Event {
     /// Returns a reference of the underlying data
     pub fn data_raw(&self) -> &[u8] {
         &self.data
+    }
+
+    /// Returns a reference to the namespace
+    pub fn namespace(&self) -> &Option<String> {
+        &self.namespace
     }
 
     /// Returns the name of the event

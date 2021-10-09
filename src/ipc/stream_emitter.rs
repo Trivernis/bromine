@@ -24,12 +24,18 @@ impl StreamEmitter {
 
     pub async fn _emit<T: Serialize>(
         &self,
+        namespace: Option<&str>,
         event: &str,
         data: T,
         res_id: Option<u64>,
     ) -> Result<EmitMetadata> {
         let data_bytes = rmp_serde::to_vec(&data)?;
-        let event = Event::new(event.to_string(), data_bytes, res_id);
+        let event = if let Some(namespace) = namespace {
+            Event::with_namespace(namespace.to_string(), event.to_string(), data_bytes, res_id)
+        } else {
+            Event::new(event.to_string(), data_bytes, res_id)
+        };
+
         let event_bytes = event.to_bytes()?;
         {
             let mut stream = self.stream.lock().await;
@@ -40,22 +46,50 @@ impl StreamEmitter {
     }
 
     /// Emits an event
-    pub async fn emit<T: Serialize>(&self, event: &str, data: T) -> Result<EmitMetadata> {
-        let metadata = self._emit(event, data, None).await?;
+    pub async fn emit<S: AsRef<str>, T: Serialize>(
+        &self,
+        event: S,
+        data: T,
+    ) -> Result<EmitMetadata> {
+        self._emit(None, event.as_ref(), data, None).await
+    }
 
-        Ok(metadata)
+    /// Emits an event to a specific namespace
+    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, T: Serialize>(
+        &self,
+        namespace: S1,
+        event: S2,
+        data: T,
+    ) -> Result<EmitMetadata> {
+        self._emit(Some(namespace.as_ref()), event.as_ref(), data, None)
+            .await
     }
 
     /// Emits a response to an event
-    pub async fn emit_response<T: Serialize>(
+    pub async fn emit_response<S: AsRef<str>, T: Serialize>(
         &self,
         event_id: u64,
-        event: &str,
+        event: S,
         data: T,
     ) -> Result<EmitMetadata> {
-        let metadata = self._emit(event, data, Some(event_id)).await?;
+        self._emit(None, event.as_ref(), data, Some(event_id)).await
+    }
 
-        Ok(metadata)
+    /// Emits a response to an event
+    pub async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>, T: Serialize>(
+        &self,
+        event_id: u64,
+        namespace: S1,
+        event: S2,
+        data: T,
+    ) -> Result<EmitMetadata> {
+        self._emit(
+            Some(namespace.as_ref()),
+            event.as_ref(),
+            data,
+            Some(event_id),
+        )
+        .await
     }
 }
 

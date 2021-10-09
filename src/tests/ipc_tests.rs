@@ -1,31 +1,31 @@
 use self::super::utils::PingEventData;
+use crate::context::Context;
 use crate::error::Error;
+use crate::error::Result;
 use crate::events::error_event::ErrorEventData;
 use crate::tests::utils::start_test_server;
-use crate::IPCBuilder;
+use crate::{Event, IPCBuilder};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
+async fn handle_ping_event(ctx: &Context, e: Event) -> Result<()> {
+    let mut ping_data = e.data::<PingEventData>()?;
+    ping_data.time = SystemTime::now();
+    ping_data.ttl -= 1;
+
+    if ping_data.ttl > 0 {
+        ctx.emitter.emit_response(e.id(), "pong", ping_data).await?;
+    }
+
+    Ok(())
+}
+
 #[tokio::test]
 async fn it_receives_events() {
     let builder = IPCBuilder::new()
-        .on("ping", {
-            move |ctx, e| {
-                Box::pin(async move {
-                    let mut ping_data = e.data::<PingEventData>()?;
-                    ping_data.time = SystemTime::now();
-                    ping_data.ttl -= 1;
-
-                    if ping_data.ttl > 0 {
-                        ctx.emitter.emit_response(e.id(), "pong", ping_data).await?;
-                    }
-
-                    Ok(())
-                })
-            }
-        })
-        .address("127.0.0.1:8282");
+        .on("ping", |ctx, e| Box::pin(handle_ping_event(ctx, e)))
+        .address("127.0.0.1:8281");
     let server_running = Arc::new(AtomicBool::new(false));
     tokio::spawn({
         let server_running = Arc::clone(&server_running);
@@ -42,6 +42,44 @@ async fn it_receives_events() {
     let reply = ctx
         .emitter
         .emit(
+            "ping",
+            PingEventData {
+                ttl: 16,
+                time: SystemTime::now(),
+            },
+        )
+        .await
+        .unwrap()
+        .await_reply(&ctx)
+        .await
+        .unwrap();
+    assert_eq!(reply.name(), "pong");
+}
+
+#[tokio::test]
+async fn it_receives_namespaced_events() {
+    let builder = IPCBuilder::new()
+        .namespace("mainspace")
+        .on("ping", |ctx, e| Box::pin(handle_ping_event(ctx, e)))
+        .build()
+        .address("127.0.0.1:8282");
+    let server_running = Arc::new(AtomicBool::new(false));
+    tokio::spawn({
+        let server_running = Arc::clone(&server_running);
+        let builder = builder.clone();
+        async move {
+            server_running.store(true, Ordering::SeqCst);
+            builder.build_server().await.unwrap();
+        }
+    });
+    while !server_running.load(Ordering::Relaxed) {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let ctx = builder.build_client().await.unwrap();
+    let reply = ctx
+        .emitter
+        .emit_to(
+            "mainspace",
             "ping",
             PingEventData {
                 ttl: 16,
