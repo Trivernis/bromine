@@ -148,7 +148,7 @@ dependencies = [
 
 [[package]]
 name = "rmp-ipc"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "lazy_static",
  "log",
@@ -156,6 +156,7 @@ dependencies = [
  "serde",
  "thiserror",
  "tokio",
+ "typemap_rev",
 ]
 
 [[package]]
@@ -247,6 +248,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "typemap_rev"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5b74f0a24b5454580a79abb6994393b09adf0ab8070f15827cb666255de155"
 
 [[package]]
 name = "unicode-xid"

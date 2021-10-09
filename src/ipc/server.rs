@@ -7,6 +7,8 @@ use crate::namespaces::namespace::Namespace;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use tokio::sync::RwLock;
+use typemap_rev::TypeMap;
 
 /// The IPC Server listening for connections.
 /// Use the [IPCBuilder](crate::builder::IPCBuilder) to create a server.
@@ -14,6 +16,7 @@ use tokio::net::TcpListener;
 pub struct IPCServer {
     pub(crate) handler: EventHandler,
     pub(crate) namespaces: HashMap<String, Namespace>,
+    pub(crate) data: TypeMap,
 }
 
 impl IPCServer {
@@ -23,15 +26,17 @@ impl IPCServer {
         let listener = TcpListener::bind(address).await?;
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);
+        let data = Arc::new(RwLock::new(self.data));
 
         while let Ok((stream, _)) = listener.accept().await {
             let handler = Arc::clone(&handler);
             let namespaces = Arc::clone(&namespaces);
+            let data = Arc::clone(&data);
 
             tokio::spawn(async {
                 let (read_half, write_half) = stream.into_split();
                 let emitter = StreamEmitter::new(write_half);
-                let ctx = Context::new(StreamEmitter::clone(&emitter));
+                let ctx = Context::new(StreamEmitter::clone(&emitter), data);
 
                 handle_connection(namespaces, handler, read_half, ctx).await;
             });

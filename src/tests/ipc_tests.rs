@@ -8,6 +8,7 @@ use crate::{Event, IPCBuilder};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use typemap_rev::TypeMapKey;
 
 async fn handle_ping_event(ctx: &Context, e: Event) -> Result<()> {
     let mut ping_data = e.data::<PingEventData>()?;
@@ -21,15 +22,19 @@ async fn handle_ping_event(ctx: &Context, e: Event) -> Result<()> {
     Ok(())
 }
 
+fn get_builder_with_ping(address: &str) -> IPCBuilder {
+    IPCBuilder::new()
+        .on("ping", |ctx, e| Box::pin(handle_ping_event(ctx, e)))
+        .address(address)
+}
+
 #[tokio::test]
 async fn it_receives_events() {
-    let builder = IPCBuilder::new()
-        .on("ping", |ctx, e| Box::pin(handle_ping_event(ctx, e)))
-        .address("127.0.0.1:8281");
+    let builder = get_builder_with_ping("127.0.0.1:8281");
     let server_running = Arc::new(AtomicBool::new(false));
     tokio::spawn({
         let server_running = Arc::clone(&server_running);
-        let builder = builder.clone();
+        let builder = get_builder_with_ping("127.0.0.1:8281");
         async move {
             server_running.store(true, Ordering::SeqCst);
             builder.build_server().await.unwrap();
@@ -56,17 +61,21 @@ async fn it_receives_events() {
     assert_eq!(reply.name(), "pong");
 }
 
-#[tokio::test]
-async fn it_receives_namespaced_events() {
-    let builder = IPCBuilder::new()
+fn get_builder_with_ping_mainspace(address: &str) -> IPCBuilder {
+    IPCBuilder::new()
         .namespace("mainspace")
         .on("ping", |ctx, e| Box::pin(handle_ping_event(ctx, e)))
         .build()
-        .address("127.0.0.1:8282");
+        .address(address)
+}
+
+#[tokio::test]
+async fn it_receives_namespaced_events() {
+    let builder = get_builder_with_ping_mainspace("127.0.0.1:8282");
     let server_running = Arc::new(AtomicBool::new(false));
     tokio::spawn({
         let server_running = Arc::clone(&server_running);
-        let builder = builder.clone();
+        let builder = get_builder_with_ping_mainspace("127.0.0.1:8282");
         async move {
             server_running.store(true, Ordering::SeqCst);
             builder.build_server().await.unwrap();
@@ -94,32 +103,46 @@ async fn it_receives_namespaced_events() {
     assert_eq!(reply.name(), "pong");
 }
 
-#[tokio::test]
-async fn it_handles_errors() {
-    let error_occurred = Arc::new(AtomicBool::new(false));
-    let builder = IPCBuilder::new()
+struct ErrorOccurredKey;
+
+impl TypeMapKey for ErrorOccurredKey {
+    type Value = Arc<AtomicBool>;
+}
+
+fn get_builder_with_error_handling(error_occurred: Arc<AtomicBool>, address: &str) -> IPCBuilder {
+    IPCBuilder::new()
+        .insert::<ErrorOccurredKey>(error_occurred)
         .on("ping", move |_, _| {
             Box::pin(async move { Err(Error::from("ERRROROROROR")) })
         })
         .on("error", {
-            let error_occurred = Arc::clone(&error_occurred);
-            move |_, e| {
-                let error_occurred = Arc::clone(&error_occurred);
+            move |ctx, e| {
                 Box::pin(async move {
                     let error = e.data::<ErrorEventData>()?;
                     assert!(error.message.len() > 0);
                     assert_eq!(error.code, 500);
-                    error_occurred.store(true, Ordering::SeqCst);
+                    {
+                        let data = ctx.data.read().await;
+                        let error_occurred = data.get::<ErrorOccurredKey>().unwrap();
+                        error_occurred.store(true, Ordering::SeqCst);
+                    }
                     Ok(())
                 })
             }
         })
-        .address("127.0.0.1:8283");
+        .address(address)
+}
+
+#[tokio::test]
+async fn it_handles_errors() {
+    let error_occurred = Arc::new(AtomicBool::new(false));
+    let builder = get_builder_with_error_handling(Arc::clone(&error_occurred), "127.0.0.1:8283");
     let server_running = Arc::new(AtomicBool::new(false));
 
     tokio::spawn({
         let server_running = Arc::clone(&server_running);
-        let builder = builder.clone();
+        let error_occurred = Arc::clone(&error_occurred);
+        let builder = get_builder_with_error_handling(error_occurred, "127.0.0.1:8283");
         async move {
             server_running.store(true, Ordering::SeqCst);
             builder.build_server().await.unwrap();

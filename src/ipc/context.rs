@@ -3,7 +3,8 @@ use crate::ipc::stream_emitter::StreamEmitter;
 use crate::Event;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{oneshot, Mutex, RwLock};
+use typemap_rev::TypeMap;
 
 /// An object provided to each callback function.
 /// Currently it only holds the event emitter to emit response events in event callbacks.
@@ -24,14 +25,18 @@ pub struct Context {
     /// The event emitter
     pub emitter: StreamEmitter,
 
+    /// Field to store additional context data
+    pub data: Arc<RwLock<TypeMap>>,
+
     reply_listeners: Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>>,
 }
 
 impl Context {
-    pub(crate) fn new(emitter: StreamEmitter) -> Self {
+    pub(crate) fn new(emitter: StreamEmitter, data: Arc<RwLock<TypeMap>>) -> Self {
         Self {
             emitter,
             reply_listeners: Arc::new(Mutex::new(HashMap::new())),
+            data,
         }
     }
 
