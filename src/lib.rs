@@ -81,3 +81,5 @@ pub use events::error_event;
 pub use events::event::Event;
 pub use ipc::builder::IPCBuilder;
 pub use ipc::*;
+pub use namespaces::builder::NamespaceBuilder;
+pub use namespaces::namespace::Namespace;

@@ -75,7 +75,7 @@ impl StreamEmitter {
         self._emit(None, event.as_ref(), data, Some(event_id)).await
     }
 
-    /// Emits a response to an event
+    /// Emits a response to an event to a namespace
     pub async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>, T: Serialize>(
         &self,
         event_id: u64,
