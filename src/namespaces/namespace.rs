@@ -8,6 +8,7 @@ pub struct Namespace {
 }
 
 impl Namespace {
+    /// Creates a new namespace with an event handler to register event callbacks on
     pub fn new<S: ToString>(name: S, handler: EventHandler) -> Self {
         Self {
             name: name.to_string(),
