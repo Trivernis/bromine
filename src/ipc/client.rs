@@ -32,6 +32,7 @@ impl IPCClient {
         );
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);
+        log::debug!("IPC client connected to {}", address);
 
         tokio::spawn({
             let ctx = Context::clone(&ctx);

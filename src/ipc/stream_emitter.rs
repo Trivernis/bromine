@@ -30,6 +30,8 @@ impl StreamEmitter {
         res_id: Option<u64>,
     ) -> Result<EmitMetadata> {
         let data_bytes = rmp_serde::to_vec(&data)?;
+        log::debug!("Emitting event {:?}:{}", namespace, event);
+
         let event = if let Some(namespace) = namespace {
             Event::with_namespace(namespace.to_string(), event.to_string(), data_bytes, res_id)
         } else {
@@ -38,6 +40,7 @@ impl StreamEmitter {
 
         let event_bytes = event.to_bytes()?;
         {
+            log::trace!("Writing {} bytes", event_bytes.len());
             let mut stream = self.stream.lock().await;
             (*stream).write_all(&event_bytes[..]).await?;
         }

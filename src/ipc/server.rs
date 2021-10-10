@@ -27,6 +27,7 @@ impl IPCServer {
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);
         let data = Arc::new(RwLock::new(self.data));
+        log::debug!("IPC server listening on {}", address);
 
         while let Ok((stream, _)) = listener.accept().await {
             let handler = Arc::clone(&handler);

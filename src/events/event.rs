@@ -69,6 +69,7 @@ impl Event {
     /// Reads an event message
     pub async fn from_async_read<R: AsyncRead + Unpin>(reader: &mut R) -> Result<Self> {
         let length = reader.read_u32().await?;
+        log::trace!("Parsing event of length {}", length);
         let mut data = vec![0u8; length as usize];
         reader.read_exact(&mut data).await?;
         let event = rmp_serde::from_read(&data[..])?;
