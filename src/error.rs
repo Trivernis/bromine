@@ -22,6 +22,9 @@ pub enum Error {
 
     #[error("Channel Error: {0}")]
     ReceiveError(#[from] oneshot::error::RecvError),
+
+    #[error("Send Error")]
+    SendError,
 }
 
 impl From<String> for Error {

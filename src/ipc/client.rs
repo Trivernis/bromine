@@ -7,6 +7,7 @@ use crate::namespaces::namespace::Namespace;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::TcpStream;
+use tokio::sync::oneshot;
 use tokio::sync::RwLock;
 use typemap_rev::TypeMap;
 
@@ -26,19 +27,25 @@ impl IPCClient {
         let stream = TcpStream::connect(address).await?;
         let (read_half, write_half) = stream.into_split();
         let emitter = StreamEmitter::new(write_half);
+        let (tx, rx) = oneshot::channel();
         let ctx = Context::new(
             StreamEmitter::clone(&emitter),
             Arc::new(RwLock::new(self.data)),
+            Some(tx),
         );
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);
         log::debug!("IPC client connected to {}", address);
 
-        tokio::spawn({
+        let handle = tokio::spawn({
             let ctx = Context::clone(&ctx);
             async move {
                 handle_connection(namespaces, handler, read_half, ctx).await;
             }
+        });
+        tokio::spawn(async move {
+            let _ = rx.await;
+            handle.abort();
         });
 
         Ok(ctx)

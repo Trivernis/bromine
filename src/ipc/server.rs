@@ -37,7 +37,7 @@ impl IPCServer {
             tokio::spawn(async {
                 let (read_half, write_half) = stream.into_split();
                 let emitter = StreamEmitter::new(write_half);
-                let ctx = Context::new(StreamEmitter::clone(&emitter), data);
+                let ctx = Context::new(StreamEmitter::clone(&emitter), data, None);
 
                 handle_connection(namespaces, handler, read_half, ctx).await;
             });
