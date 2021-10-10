@@ -21,9 +21,11 @@ async fn handle_connection(
     ctx: Context,
 ) {
     while let Ok(event) = Event::from_async_read(&mut read_half).await {
+        log::debug!("Received {:?}:{} event", event.namespace(), event.name());
         // check if the event is a reply
         if let Some(ref_id) = event.reference_id() {
             // get the listener for replies
+            log::trace!("Event is response to {}", ref_id);
             if let Some(sender) = ctx.get_reply_sender(ref_id).await {
                 // try sending the event to the listener for replies
                 if let Err(event) = sender.send(event) {
@@ -31,11 +33,14 @@ async fn handle_connection(
                 }
                 continue;
             }
+            log::trace!("No response listener found for event. Passing to regular listener.");
         }
         if let Some(namespace) = event.namespace().clone().and_then(|n| namespaces.get(&n)) {
+            log::trace!("Passing event to namespace listener");
             let handler = Arc::clone(&namespace.handler);
             handle_event(Context::clone(&ctx), handler, event);
         } else {
+            log::trace!("Passing event to global listener");
             handle_event(Context::clone(&ctx), Arc::clone(&handler), event);
         }
     }
