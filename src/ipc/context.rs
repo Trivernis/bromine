@@ -1,8 +1,10 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::ipc::stream_emitter::StreamEmitter;
 use crate::Event;
 use std::collections::HashMap;
+use std::mem;
 use std::sync::Arc;
+use tokio::sync::oneshot::Sender;
 use tokio::sync::{oneshot, Mutex, RwLock};
 use typemap_rev::TypeMap;
 
@@ -28,15 +30,22 @@ pub struct Context {
     /// Field to store additional context data
     pub data: Arc<RwLock<TypeMap>>,
 
+    stop_sender: Arc<Mutex<Option<Sender<()>>>>,
+
     reply_listeners: Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>>,
 }
 
 impl Context {
-    pub(crate) fn new(emitter: StreamEmitter, data: Arc<RwLock<TypeMap>>) -> Self {
+    pub(crate) fn new(
+        emitter: StreamEmitter,
+        data: Arc<RwLock<TypeMap>>,
+        stop_sender: Option<Sender<()>>,
+    ) -> Self {
         Self {
             emitter,
             reply_listeners: Arc::new(Mutex::new(HashMap::new())),
             data,
+            stop_sender: Arc::new(Mutex::new(stop_sender)),
         }
     }
 
@@ -50,6 +59,16 @@ impl Context {
         let event = tx.await?;
 
         Ok(event)
+    }
+
+    /// Stops the listener and closes the connection
+    pub async fn stop(self) -> Result<()> {
+        let mut sender = self.stop_sender.lock().await;
+        if let Some(sender) = mem::take(&mut *sender) {
+            sender.send(()).map_err(|_| Error::SendError)?;
+        }
+
+        Ok(())
     }
 
     /// Returns the channel for a reply to the given message id
