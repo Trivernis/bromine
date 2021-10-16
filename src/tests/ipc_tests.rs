@@ -75,12 +75,15 @@ impl TestNamespace {
 }
 
 impl NamespaceProvider for TestNamespace {
-    fn name() -> String {
-        String::from("Test")
+    fn name() -> &'static str {
+        "Test"
     }
 
     fn register(handler: &mut EventHandler) {
-        handler.on("ping", callback!(Self::ping))
+        events!(handler,
+            "ping" => Self::ping,
+            "ping2" => Self::ping
+        );
     }
 }
 
