@@ -76,8 +76,25 @@ async fn main() {
 
 **Server:**
 ```rust
-use rmp_ipc::IPCBuilder;
+use rmp_ipc::{IPCBuilder, EventHandler, namespace, command, Event, context::Context};
 // create the server
+
+pub struct MyNamespace;
+
+impl MyNamespace {
+     async fn ping(_ctx: &Context, _event: Event) -> Result<()> {
+         println!("My namespace received a ping");
+         Ok(())
+     }
+}
+
+impl NamespaceProvider for MyNamespace {
+     fn name() -> String {String::from("my_namespace")}
+ 
+     fn register(handler: &mut EventHandler) {
+         handler.on("ping", callback!(Self::ping))
+     }
+}
 
 #[tokio::main]
 async fn main() {
@@ -85,12 +102,13 @@ async fn main() {
         .address("127.0.0.1:2020")
         // register namespace
         .namespace("mainspace-server")
-        // register callback (without macro)
+        // register callback
         .on("ping", |_ctx, _event| Box::pin(async move {
             println!("Received ping event.");
             Ok(())
         }))
         .build()
+        .add_namespace(namespace!(MyNamespace))
         .build_server().await.unwrap();
 }
 ```

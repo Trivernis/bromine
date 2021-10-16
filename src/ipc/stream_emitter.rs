@@ -1,6 +1,6 @@
-use crate::context::Context;
 use crate::error::Result;
 use crate::events::event::Event;
+use crate::ipc::context::Context;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;

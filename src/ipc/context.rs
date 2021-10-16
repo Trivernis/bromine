@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
+use crate::event::Event;
 use crate::ipc::stream_emitter::StreamEmitter;
-use crate::Event;
 use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
@@ -11,11 +11,9 @@ use typemap_rev::TypeMap;
 /// An object provided to each callback function.
 /// Currently it only holds the event emitter to emit response events in event callbacks.
 /// ```rust
-/// use rmp_ipc::context::Context;
-/// use rmp_ipc::Event;
-/// use rmp_ipc::error::Result;
+/// use rmp_ipc::prelude::*;
 ///
-/// async fn my_callback(ctx: &Context, _event: Event) -> Result<()> {
+/// async fn my_callback(ctx: &Context, _event: Event) -> IPCResult<()> {
 ///     // use the emitter on the context object to emit events
 ///     // inside callbacks
 ///     ctx.emitter.emit("ping", ()).await?;

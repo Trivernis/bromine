@@ -1,8 +1,9 @@
-use crate::context::Context;
 use crate::error::Result;
+use crate::event::Event;
 use crate::events::event_handler::EventHandler;
+use crate::ipc::context::Context;
 use crate::namespaces::namespace::Namespace;
-use crate::{Event, IPCBuilder};
+use crate::IPCBuilder;
 use std::future::Future;
 use std::pin::Pin;
 

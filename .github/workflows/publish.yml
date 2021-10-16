@@ -1,0 +1,26 @@
+name: Publish a release
+
+on:
+  push:
+    branches: [ main ]
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Login
+        with:
+          crates_io_token: ${{secrets.CRATES_IO_TOKEN}}
+        run: cargo login
+
+      - name: Publish to crates.io
+        run: cargo publish
