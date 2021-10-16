@@ -2,7 +2,7 @@ use crate::events::event_handler::EventHandler;
 use crate::namespace::Namespace;
 
 pub trait NamespaceProvider {
-    fn name() -> String;
+    fn name() -> &'static str;
     fn register(handler: &mut EventHandler);
 }
 

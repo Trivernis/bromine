@@ -89,10 +89,12 @@ impl MyNamespace {
 }
 
 impl NamespaceProvider for MyNamespace {
-     fn name() -> String {String::from("my_namespace")}
+     fn name() -> &'static str {"my_namespace"}
  
      fn register(handler: &mut EventHandler) {
-         handler.on("ping", callback!(Self::ping))
+         events!(handler, 
+            "ping" => Self::ping
+         );
      }
 }
 
