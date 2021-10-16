@@ -1,4 +1,5 @@
 use self::super::utils::PingEventData;
+use crate::callback;
 use crate::context::Context;
 use crate::error::Error;
 use crate::error::Result;
@@ -64,7 +65,7 @@ async fn it_receives_events() {
 fn get_builder_with_ping_mainspace(address: &str) -> IPCBuilder {
     IPCBuilder::new()
         .namespace("mainspace")
-        .on("ping", |ctx, e| Box::pin(handle_ping_event(ctx, e)))
+        .on("ping", callback!(handle_ping_event))
         .build()
         .address(address)
 }
@@ -115,21 +116,20 @@ fn get_builder_with_error_handling(error_occurred: Arc<AtomicBool>, address: &st
         .on("ping", move |_, _| {
             Box::pin(async move { Err(Error::from("ERRROROROROR")) })
         })
-        .on("error", {
-            move |ctx, e| {
-                Box::pin(async move {
-                    let error = e.data::<ErrorEventData>()?;
-                    assert!(error.message.len() > 0);
-                    assert_eq!(error.code, 500);
-                    {
-                        let data = ctx.data.read().await;
-                        let error_occurred = data.get::<ErrorOccurredKey>().unwrap();
-                        error_occurred.store(true, Ordering::SeqCst);
-                    }
-                    Ok(())
-                })
-            }
-        })
+        .on(
+            "error",
+            callback!(ctx, event, async move {
+                let error = event.data::<ErrorEventData>()?;
+                assert!(error.message.len() > 0);
+                assert_eq!(error.code, 500);
+                {
+                    let data = ctx.data.read().await;
+                    let error_occurred = data.get::<ErrorOccurredKey>().unwrap();
+                    error_occurred.store(true, Ordering::SeqCst);
+                }
+                Ok(())
+            }),
+        )
         .address(address)
 }
 
