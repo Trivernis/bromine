@@ -18,9 +18,9 @@ jobs:
         run: cargo test --verbose
 
       - name: Login
-        with:
-          crates_io_token: ${{secrets.CRATES_IO_TOKEN}}
-        run: cargo login
+        env:
+          CRATES_IO_TOKEN: ${{secrets.CRATES_IO_TOKEN}}
+        run: cargo login "$CRATES_IO_TOKEN"
 
       - name: Publish to crates.io
         run: cargo publish
