@@ -1,8 +1,7 @@
-use crate::context::Context;
 use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event_handler::EventHandler;
 use crate::namespaces::namespace::Namespace;
-use crate::Event;
+use crate::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::tcp::OwnedReadHalf;

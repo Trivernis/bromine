@@ -2,15 +2,32 @@
 //! messagepack. All calls are asynchronous and event based.
 //! Client Example:
 //! ```no_run
-//! use rmp_ipc::{callback, Event, context::Context, IPCBuilder, error::Result};
+//! use rmp_ipc::prelude::*;
 //!
 //! /// Callback ping function
-//! async fn handle_ping(ctx: &Context, event: Event) -> Result<()> {
+//! async fn handle_ping(ctx: &Context, event: Event) -> IPCResult<()> {
 //!     println!("Received ping event.");
 //!     ctx.emitter.emit_response(event.id(), "pong", ()).await?;
 //!
 //!     Ok(())
 //! }
+//!
+//! pub struct MyNamespace;
+//!
+//! impl MyNamespace {
+//!     async fn ping(_ctx: &Context, _event: Event) -> IPCResult<()> {
+//!         println!("My namespace received a ping");
+//!         Ok(())
+//!     }
+//! }
+//!
+//! impl NamespaceProvider for MyNamespace {
+//!     fn name() -> String {String::from("my_namespace")}
+//!
+//!     fn register(handler: &mut EventHandler) {
+//!         handler.on("ping", callback!(Self::ping))
+//!     }
+//!}
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -27,6 +44,7 @@
 //!             Ok(())
 //!         }))
 //!         .build()
+//!         .add_namespace(namespace!(MyNamespace))
 //!         .build_client().await.unwrap();
 //!
 //!     // emit an initial event
@@ -81,14 +99,29 @@ mod tests;
 
 pub mod error;
 mod events;
-mod ipc;
+pub mod ipc;
 mod macros;
 mod namespaces;
 
 pub use events::error_event;
-pub use events::event::Event;
+pub use events::event;
+pub use events::event_handler;
 pub use ipc::builder::IPCBuilder;
-pub use ipc::*;
 pub use macros::*;
 pub use namespaces::builder::NamespaceBuilder;
-pub use namespaces::namespace::Namespace;
+pub use namespaces::namespace;
+pub use namespaces::provider_trait;
+
+pub mod prelude {
+    pub use crate::error::Error as IPCError;
+    pub use crate::error::Result as IPCResult;
+    pub use crate::event::Event;
+    pub use crate::event_handler::EventHandler;
+    pub use crate::ipc::context::Context;
+    pub use crate::ipc::*;
+    pub use crate::macros::*;
+    pub use crate::namespace::Namespace;
+    pub use crate::namespaces::builder::NamespaceBuilder;
+    pub use crate::namespaces::provider_trait::*;
+    pub use crate::*;
+}

@@ -1,17 +1,12 @@
 use self::super::utils::PingEventData;
-use crate::callback;
-use crate::context::Context;
-use crate::error::Error;
-use crate::error::Result;
-use crate::events::error_event::ErrorEventData;
+use crate::prelude::*;
 use crate::tests::utils::start_test_server;
-use crate::{Event, IPCBuilder};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use typemap_rev::TypeMapKey;
 
-async fn handle_ping_event(ctx: &Context, e: Event) -> Result<()> {
+async fn handle_ping_event(ctx: &Context, e: Event) -> IPCResult<()> {
     let mut ping_data = e.data::<PingEventData>()?;
     ping_data.time = SystemTime::now();
     ping_data.ttl -= 1;
@@ -70,6 +65,25 @@ fn get_builder_with_ping_mainspace(address: &str) -> IPCBuilder {
         .address(address)
 }
 
+pub struct TestNamespace;
+
+impl TestNamespace {
+    async fn ping(_c: &Context, _e: Event) -> IPCResult<()> {
+        println!("Ping received");
+        Ok(())
+    }
+}
+
+impl NamespaceProvider for TestNamespace {
+    fn name() -> String {
+        String::from("Test")
+    }
+
+    fn register(handler: &mut EventHandler) {
+        handler.on("ping", callback!(Self::ping))
+    }
+}
+
 #[tokio::test]
 async fn it_receives_namespaced_events() {
     let builder = get_builder_with_ping_mainspace("127.0.0.1:8282");
@@ -85,7 +99,11 @@ async fn it_receives_namespaced_events() {
     while !server_running.load(Ordering::Relaxed) {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
-    let ctx = builder.build_client().await.unwrap();
+    let ctx = builder
+        .add_namespace(namespace!(TestNamespace))
+        .build_client()
+        .await
+        .unwrap();
     let reply = ctx
         .emitter
         .emit_to(
@@ -114,12 +132,12 @@ fn get_builder_with_error_handling(error_occurred: Arc<AtomicBool>, address: &st
     IPCBuilder::new()
         .insert::<ErrorOccurredKey>(error_occurred)
         .on("ping", move |_, _| {
-            Box::pin(async move { Err(Error::from("ERRROROROROR")) })
+            Box::pin(async move { Err(IPCError::from("ERRROROROROR")) })
         })
         .on(
             "error",
             callback!(ctx, event, async move {
-                let error = event.data::<ErrorEventData>()?;
+                let error = event.data::<error_event::ErrorEventData>()?;
                 assert!(error.message.len() > 0);
                 assert_eq!(error.code, 500);
                 {
