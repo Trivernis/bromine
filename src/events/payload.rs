@@ -54,3 +54,12 @@ impl EventSendPayload for BytePayload {
         Ok(self.bytes)
     }
 }
+
+impl EventReceivePayload for BytePayload {
+    fn from_payload_bytes<R: Read>(mut reader: R) -> IPCResult<Self> {
+        let mut buf = Vec::new();
+        reader.read_to_end(&mut buf)?;
+
+        Ok(Self::new(buf))
+    }
+}
