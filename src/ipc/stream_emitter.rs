@@ -1,11 +1,12 @@
 use crate::error::Result;
 use crate::events::event::Event;
+use crate::events::payload::EventSendPayload;
 use crate::ipc::context::Context;
-use serde::Serialize;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
+use tokio::time::Instant;
 
 /// An abstraction over the raw tokio tcp stream
 /// to emit events and share a connection across multiple
@@ -22,14 +23,14 @@ impl StreamEmitter {
         }
     }
 
-    pub async fn _emit<T: Serialize>(
+    pub async fn _emit<T: EventSendPayload>(
         &self,
         namespace: Option<&str>,
         event: &str,
         data: T,
         res_id: Option<u64>,
     ) -> Result<EmitMetadata> {
-        let data_bytes = rmp_serde::to_vec(&data)?;
+        let data_bytes = data.to_payload_bytes()?;
         log::debug!("Emitting event {:?}:{}", namespace, event);
 
         let event = if let Some(namespace) = namespace {
@@ -40,16 +41,17 @@ impl StreamEmitter {
 
         let event_bytes = event.to_bytes()?;
         {
-            log::trace!("Writing {} bytes", event_bytes.len());
+            let start = Instant::now();
             let mut stream = self.stream.lock().await;
             (*stream).write_all(&event_bytes[..]).await?;
+            log::trace!("Wrote {} bytes in {:?}", event_bytes.len(), start.elapsed());
         }
 
         Ok(EmitMetadata::new(event.id()))
     }
 
     /// Emits an event
-    pub async fn emit<S: AsRef<str>, T: Serialize>(
+    pub async fn emit<S: AsRef<str>, T: EventSendPayload>(
         &self,
         event: S,
         data: T,
@@ -58,7 +60,7 @@ impl StreamEmitter {
     }
 
     /// Emits an event to a specific namespace
-    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, T: Serialize>(
+    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload>(
         &self,
         namespace: S1,
         event: S2,
@@ -69,7 +71,7 @@ impl StreamEmitter {
     }
 
     /// Emits a response to an event
-    pub async fn emit_response<S: AsRef<str>, T: Serialize>(
+    pub async fn emit_response<S: AsRef<str>, T: EventSendPayload>(
         &self,
         event_id: u64,
         event: S,
@@ -79,7 +81,7 @@ impl StreamEmitter {
     }
 
     /// Emits a response to an event to a namespace
-    pub async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>, T: Serialize>(
+    pub async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload>(
         &self,
         event_id: u64,
         namespace: S1,

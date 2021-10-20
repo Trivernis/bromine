@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub mod error_event;
 pub mod event;
 pub mod event_handler;
+pub mod payload;
 
 /// Generates a new event id
 pub(crate) fn generate_event_id() -> u64 {
