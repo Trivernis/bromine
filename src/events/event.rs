@@ -1,7 +1,6 @@
 use crate::error::Result;
 use crate::events::generate_event_id;
 use crate::events::payload::EventReceivePayload;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt};
 
