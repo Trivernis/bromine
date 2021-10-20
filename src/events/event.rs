@@ -7,13 +7,17 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 /// A container representing an event and underlying binary data.
 /// The data can be decoded into an object representation or read
 /// as raw binary data.
-#[derive(Serialize, Deserialize)]
 pub struct Event {
+    header: EventHeader,
+    data: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct EventHeader {
     id: u64,
     ref_id: Option<u64>,
     namespace: Option<String>,
     name: String,
-    data: Vec<u8>,
 }
 
 impl Event {
@@ -24,24 +28,35 @@ impl Event {
         data: Vec<u8>,
         ref_id: Option<u64>,
     ) -> Self {
-        Self {
+        let header = EventHeader {
             id: generate_event_id(),
             ref_id,
             namespace: Some(namespace),
             name,
-            data,
-        }
+        };
+        Self { header, data }
     }
 
     /// Creates a new event
     pub fn new(name: String, data: Vec<u8>, ref_id: Option<u64>) -> Self {
-        Self {
+        let header = EventHeader {
             id: generate_event_id(),
             ref_id,
             namespace: None,
             name,
-            data,
-        }
+        };
+        Self { header, data }
+    }
+
+    /// The identifier of the message
+    pub fn id(&self) -> u64 {
+        self.header.id
+    }
+
+    /// The ID of the message referenced by this message.
+    /// It represents the message that is replied to and can be None.
+    pub fn reference_id(&self) -> Option<u64> {
+        self.header.ref_id.clone()
     }
 
     /// Decodes the data to the given type
@@ -58,46 +73,51 @@ impl Event {
 
     /// Returns a reference to the namespace
     pub fn namespace(&self) -> &Option<String> {
-        &self.namespace
+        &self.header.namespace
     }
 
     /// Returns the name of the event
     pub fn name(&self) -> &str {
-        &self.name
+        &self.header.name
     }
 
     /// Reads an event message
     pub async fn from_async_read<R: AsyncRead + Unpin>(reader: &mut R) -> Result<Self> {
-        let length = reader.read_u32().await?;
-        log::trace!("Parsing event of length {}", length);
-        let mut data = vec![0u8; length as usize];
+        let total_length = reader.read_u64().await?;
+        let header_length = reader.read_u16().await?;
+        let data_length = total_length - header_length as u64;
+        log::trace!(
+            "Parsing event of length {} ({} header, {} data)",
+            total_length,
+            header_length,
+            data_length
+        );
+
+        let header: EventHeader = {
+            let mut header_bytes = vec![0u8; header_length as usize];
+            reader.read_exact(&mut header_bytes).await?;
+            rmp_serde::from_read(&header_bytes[..])?
+        };
+        let mut data = vec![0u8; data_length as usize];
         reader.read_exact(&mut data).await?;
-        let event = rmp_serde::from_read(&data[..])?;
+        let event = Event { header, data };
 
         Ok(event)
     }
 
     /// Encodes the event into bytes
-    pub fn to_bytes(&self) -> Result<Vec<u8>> {
-        let mut event_bytes = rmp_serde::to_vec(&self)?;
-        let mut length_bytes = (event_bytes.len() as u32).to_be_bytes().to_vec();
-        length_bytes.reverse();
+    pub fn into_bytes(mut self) -> Result<Vec<u8>> {
+        let mut header_bytes = rmp_serde::to_vec(&self.header)?;
+        let header_length = header_bytes.len() as u16;
+        let data_length = self.data.len();
+        let total_length = header_length as u64 + data_length as u64;
 
-        for byte in length_bytes {
-            event_bytes.insert(0, byte);
-        }
+        let mut buf = Vec::with_capacity(total_length as usize);
+        buf.append(&mut total_length.to_be_bytes().to_vec());
+        buf.append(&mut header_length.to_be_bytes().to_vec());
+        buf.append(&mut header_bytes);
+        buf.append(&mut self.data);
 
-        Ok(event_bytes)
-    }
-
-    /// The identifier of the message
-    pub fn id(&self) -> u64 {
-        self.id
-    }
-
-    /// The ID of the message referenced by this message.
-    /// It represents the message that is replied to and can be None.
-    pub fn reference_id(&self) -> Option<u64> {
-        self.ref_id.clone()
+        Ok(buf)
     }
 }
