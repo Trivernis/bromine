@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::events::generate_event_id;
+use crate::events::payload::EventReceivePayload;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -45,8 +46,8 @@ impl Event {
     }
 
     /// Decodes the data to the given type
-    pub fn data<T: DeserializeOwned>(&self) -> Result<T> {
-        let data = rmp_serde::from_read(&self.data[..])?;
+    pub fn data<T: EventReceivePayload>(&self) -> Result<T> {
+        let data = T::from_payload_bytes(&self.data[..])?;
 
         Ok(data)
     }
