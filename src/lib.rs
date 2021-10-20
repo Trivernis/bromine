@@ -109,6 +109,7 @@ mod namespaces;
 pub use events::error_event;
 pub use events::event;
 pub use events::event_handler;
+pub use events::payload;
 pub use ipc::builder::IPCBuilder;
 pub use macros::*;
 pub use namespaces::builder::NamespaceBuilder;
@@ -126,5 +127,6 @@ pub mod prelude {
     pub use crate::namespace::Namespace;
     pub use crate::namespaces::builder::NamespaceBuilder;
     pub use crate::namespaces::provider_trait::*;
+    pub use crate::payload::*;
     pub use crate::*;
 }

@@ -1,4 +1,4 @@
-use self::super::utils::PingEventData;
+use super::utils::PingEventData;
 use crate::prelude::*;
 use crate::tests::utils::start_test_server;
 use std::sync::atomic::{AtomicBool, Ordering};
