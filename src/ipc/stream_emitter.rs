@@ -39,7 +39,9 @@ impl StreamEmitter {
             Event::new(event.to_string(), data_bytes, res_id)
         };
 
-        let event_bytes = event.to_bytes()?;
+        let event_id = event.id();
+
+        let event_bytes = event.into_bytes()?;
         {
             let start = Instant::now();
             let mut stream = self.stream.lock().await;
@@ -47,7 +49,7 @@ impl StreamEmitter {
             log::trace!("Wrote {} bytes in {:?}", event_bytes.len(), start.elapsed());
         }
 
-        Ok(EmitMetadata::new(event.id()))
+        Ok(EmitMetadata::new(event_id))
     }
 
     /// Emits an event
