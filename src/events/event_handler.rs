@@ -54,7 +54,7 @@ impl EventHandler {
     }
 
     /// Handles a received event
-    #[tracing::instrument(level = "debug", skip(self, ctx))]
+    #[tracing::instrument(level = "debug", skip(self, ctx, event))]
     pub async fn handle_event(&self, ctx: &Context, event: Event) -> Result<()> {
         if let Some(cb) = self.callbacks.get(event.name()) {
             cb.as_ref()(ctx, event).await?;
