@@ -24,7 +24,7 @@ struct EventHeader {
 
 impl Event {
     /// Creates a new event with a namespace
-    #[tracing::instrument(level = "trace")]
+    #[tracing::instrument(level = "trace", skip(data))]
     pub fn with_namespace(
         namespace: String,
         name: String,
@@ -41,7 +41,7 @@ impl Event {
     }
 
     /// Creates a new event
-    #[tracing::instrument(level = "trace")]
+    #[tracing::instrument(level = "trace", skip(data))]
     pub fn new(name: String, data: Vec<u8>, ref_id: Option<u64>) -> Self {
         let header = EventHeader {
             id: generate_event_id(),
@@ -107,7 +107,7 @@ impl Event {
     }
 
     /// Encodes the event into bytes
-    #[tracing::instrument(level = "trace")]
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn into_bytes(mut self) -> Result<Vec<u8>> {
         let mut header_bytes = rmp_serde::to_vec(&self.header)?;
         let header_length = header_bytes.len() as u16;

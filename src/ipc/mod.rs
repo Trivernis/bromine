@@ -20,7 +20,12 @@ async fn handle_connection(
     ctx: Context,
 ) {
     while let Ok(event) = Event::from_async_read(&mut read_half).await {
-        tracing::trace!("event = {:?}", event);
+        tracing::trace!(
+            "event.name = {:?}, event.namespace = {:?}, event.reference_id = {:?}",
+            event.name(),
+            event.namespace(),
+            event.reference_id()
+        );
         // check if the event is a reply
         if let Some(ref_id) = event.reference_id() {
             tracing::trace!("Event has reference id. Passing to reply listener");

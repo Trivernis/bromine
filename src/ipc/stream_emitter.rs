@@ -23,7 +23,7 @@ impl StreamEmitter {
         }
     }
 
-    #[tracing::instrument(level = "trace", skip(self))]
+    #[tracing::instrument(level = "trace", skip(self, data))]
     pub async fn _emit<T: EventSendPayload + Debug>(
         &self,
         namespace: Option<&str>,
@@ -116,6 +116,7 @@ impl EmitMetadata {
     }
 
     /// Waits for a reply to the given message.
+    #[tracing::instrument(skip(self, ctx), fields(self.message_id))]
     pub async fn await_reply(&self, ctx: &Context) -> Result<Event> {
         let reply = ctx.await_reply(self.message_id).await?;
         Ok(reply)
