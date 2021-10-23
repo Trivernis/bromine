@@ -20,11 +20,11 @@ async fn handle_connection(
     ctx: Context,
 ) {
     while let Ok(event) = Event::from_async_read(&mut read_half).await {
-        log::debug!("Received {:?}:{} event", event.namespace(), event.name());
+        tracing::trace!("event = {:?}", event);
         // check if the event is a reply
         if let Some(ref_id) = event.reference_id() {
+            tracing::trace!("Event has reference id. Passing to reply listener");
             // get the listener for replies
-            log::trace!("Event is response to {}", ref_id);
             if let Some(sender) = ctx.get_reply_sender(ref_id).await {
                 // try sending the event to the listener for replies
                 if let Err(event) = sender.send(event) {
@@ -32,18 +32,18 @@ async fn handle_connection(
                 }
                 continue;
             }
-            log::trace!("No response listener found for event. Passing to regular listener.");
+            tracing::trace!("No response listener found for event. Passing to regular listener.");
         }
         if let Some(namespace) = event.namespace().clone().and_then(|n| namespaces.get(&n)) {
-            log::trace!("Passing event to namespace listener");
+            tracing::trace!("Passing event to namespace listener");
             let handler = Arc::clone(&namespace.handler);
             handle_event(Context::clone(&ctx), handler, event);
         } else {
-            log::trace!("Passing event to global listener");
+            tracing::trace!("Passing event to global listener");
             handle_event(Context::clone(&ctx), Arc::clone(&handler), event);
         }
     }
-    log::debug!("Connection closed.");
+    tracing::debug!("Connection closed.");
 }
 
 /// Handles a single event in a different tokio context
@@ -64,9 +64,9 @@ fn handle_event(ctx: Context, handler: Arc<EventHandler>, event: Event) {
                 )
                 .await
             {
-                log::error!("Error occurred when sending error response: {:?}", e);
+                tracing::error!("Error occurred when sending error response: {:?}", e);
             }
-            log::error!("Failed to handle event: {:?}", e);
+            tracing::error!("Failed to handle event: {:?}", e);
         }
     });
 }

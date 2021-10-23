@@ -1,0 +1,45 @@
+name: Run the benchmarks of the crate
+
+on:
+  push:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache build data
+        uses: actions/cache@v2
+        with:
+          path: |
+            target
+            ~/.cargo/
+          key: ${{ runner.os }}-cargo
+          restore-keys: |
+            ${{ runner.os }}-cargo
+
+      - name: Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
+
+      - name: Run benchmark
+        run: cargo bench -- --save-baseline ${{steps.extract_branch.outputs.branch}}
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: benchmark-results
+          path: target/criterion/
+      - name: deploy to github pages
+        uses: JamesIves/github-pages-deploy-action@4.1.5
+        with:
+          branch: gh-pages
+          folder: target/criterion/

@@ -2,6 +2,7 @@ use crate::error::Result;
 use crate::events::event::Event;
 use crate::ipc::context::Context;
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -18,6 +19,18 @@ pub struct EventHandler {
     callbacks: HashMap<String, EventCallback>,
 }
 
+impl Debug for EventHandler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let callback_names: String = self
+            .callbacks
+            .keys()
+            .cloned()
+            .collect::<Vec<String>>()
+            .join(", ");
+        format!("EventHandler {{callbacks: [{}]}}", callback_names).fmt(f)
+    }
+}
+
 impl EventHandler {
     /// Creates a new event handler
     pub fn new() -> Self {
@@ -27,6 +40,7 @@ impl EventHandler {
     }
 
     /// Adds a new event callback
+    #[tracing::instrument(skip(self, callback))]
     pub fn on<F: 'static>(&mut self, name: &str, callback: F)
     where
         F: for<'a> Fn(
@@ -40,6 +54,7 @@ impl EventHandler {
     }
 
     /// Handles a received event
+    #[tracing::instrument(level = "debug", skip(self, ctx))]
     pub async fn handle_event(&self, ctx: &Context, event: Event) -> Result<()> {
         if let Some(cb) = self.callbacks.get(event.name()) {
             cb.as_ref()(ctx, event).await?;

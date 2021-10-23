@@ -1,7 +1,7 @@
 use crate::events::event_handler::EventHandler;
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Namespace {
     name: String,
     pub(crate) handler: Arc<EventHandler>,

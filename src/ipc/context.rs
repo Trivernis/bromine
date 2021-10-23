@@ -48,6 +48,7 @@ impl Context {
     }
 
     /// Waits for a reply to the given message ID
+    #[tracing::instrument(level = "debug", skip(self))]
     pub async fn await_reply(&self, message_id: u64) -> Result<Event> {
         let (rx, tx) = oneshot::channel();
         {
@@ -60,6 +61,7 @@ impl Context {
     }
 
     /// Stops the listener and closes the connection
+    #[tracing::instrument(level = "debug", skip(self))]
     pub async fn stop(self) -> Result<()> {
         let mut sender = self.stop_sender.lock().await;
         if let Some(sender) = mem::take(&mut *sender) {

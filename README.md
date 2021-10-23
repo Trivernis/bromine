@@ -115,6 +115,10 @@ async fn main() {
 }
 ```
 
+## Benchmarks
+
+Benchmarks are generated on each commit. They can be reviewed [here](https://trivernis.github.io/rmp-ipc/report/).
+
 ## License
 
 Apache-2.0

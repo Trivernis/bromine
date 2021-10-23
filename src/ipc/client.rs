@@ -23,6 +23,7 @@ pub struct IPCClient {
 impl IPCClient {
     /// Connects to a given address and returns an emitter for events to that address.
     /// Invoked by [IPCBuilder::build_client](crate::builder::IPCBuilder::build_client)
+    #[tracing::instrument(skip(self))]
     pub async fn connect(self, address: &str) -> Result<Context> {
         let stream = TcpStream::connect(address).await?;
         let (read_half, write_half) = stream.into_split();
@@ -35,7 +36,6 @@ impl IPCClient {
         );
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);
-        log::debug!("IPC client connected to {}", address);
 
         let handle = tokio::spawn({
             let ctx = Context::clone(&ctx);
