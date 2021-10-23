@@ -38,6 +38,7 @@ impl NamespaceBuilder {
     }
 
     /// Builds the namespace
+    #[tracing::instrument(skip(self))]
     pub fn build(self) -> IPCBuilder {
         let namespace = Namespace::new(self.name, self.handler);
         self.ipc_builder.add_namespace(namespace)

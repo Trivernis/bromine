@@ -22,14 +22,17 @@ pub struct IPCServer {
 impl IPCServer {
     /// Starts the IPC Server.
     /// Invoked by [IPCBuilder::build_server](crate::builder::IPCBuilder::build_server)
+    #[tracing::instrument(skip(self))]
     pub async fn start(self, address: &str) -> Result<()> {
         let listener = TcpListener::bind(address).await?;
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);
         let data = Arc::new(RwLock::new(self.data));
-        log::debug!("IPC server listening on {}", address);
+        tracing::info!(address);
 
-        while let Ok((stream, _)) = listener.accept().await {
+        while let Ok((stream, remote_address)) = listener.accept().await {
+            let remote_address = remote_address.to_string();
+            tracing::debug!("remote_address = {}", remote_address);
             let handler = Arc::clone(&handler);
             let namespaces = Arc::clone(&namespaces);
             let data = Arc::clone(&data);

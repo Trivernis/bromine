@@ -57,11 +57,8 @@ impl IPCBuilder {
         handler.on(ERROR_EVENT_NAME, |_, event| {
             Box::pin(async move {
                 let error_data = event.data::<ErrorEventData>()?;
-                log::warn!(
-                    "Received Error Response from Server: {} - {}",
-                    error_data.code,
-                    error_data.message
-                );
+                tracing::warn!(error_data.code);
+                tracing::warn!("error_data.message = '{}'", error_data.message);
 
                 Ok(())
             })
@@ -117,6 +114,7 @@ impl IPCBuilder {
     }
 
     /// Builds an ipc server
+    #[tracing::instrument(skip(self))]
     pub async fn build_server(self) -> Result<()> {
         self.validate()?;
         let server = IPCServer {
@@ -130,6 +128,7 @@ impl IPCBuilder {
     }
 
     /// Builds an ipc client
+    #[tracing::instrument(skip(self))]
     pub async fn build_client(self) -> Result<Context> {
         self.validate()?;
         let client = IPCClient {
@@ -144,6 +143,7 @@ impl IPCBuilder {
     }
 
     /// Validates that all required fields have been provided
+    #[tracing::instrument(skip(self))]
     fn validate(&self) -> Result<()> {
         if self.address.is_none() {
             Err(Error::BuildError("Missing Address".to_string()))

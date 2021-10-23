@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 use tokio::sync::oneshot;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PingEventData {
     pub time: SystemTime,
     pub ttl: u8,

@@ -19,7 +19,7 @@ harness = false
 [dependencies]
 thiserror = "1.0.30"
 rmp-serde = "0.15.4"
-log = "0.4.14"
+tracing = "0.1.29"
 lazy_static = "1.4.0"
 typemap_rev = "0.1.5"
 
