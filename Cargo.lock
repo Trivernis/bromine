@@ -500,7 +500,7 @@ dependencies = [
 
 [[package]]
 name = "rmp-ipc"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "criterion",
  "lazy_static",
