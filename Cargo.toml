@@ -12,6 +12,10 @@ description = "IPC using Rust MessagePack (rmp)"
 name = "serialization_benchmark"
 harness = false
 
+[[bench]]
+name = "deserialization_benchmark"
+harness = false
+
 [dependencies]
 thiserror = "1.0.30"
 rmp-serde = "0.15.4"
@@ -27,8 +31,9 @@ features = ["serde_derive"]
 version = "1.12.0"
 features = ["net", "io-std", "io-util", "sync", "time"]
 
-[dev-dependencies]
-criterion = "0.3.5"
+[dev-dependencies.criterion]
+version = "0.3.5"
+features = ["async_tokio", "html_reports"]
 
 [dev-dependencies.tokio]
 version = "1.12.0"
