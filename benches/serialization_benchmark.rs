@@ -1,4 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{
+    black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
+};
 use rmp_ipc::event::Event;
 
 pub const EVENT_NAME: &str = "bench_event";
@@ -10,10 +12,17 @@ fn create_event(data_size: usize) -> Event {
 fn event_serialization(c: &mut Criterion) {
     let mut group = c.benchmark_group("event_serialization");
 
-    for size in (0..32).map(|i| i * 1024) {
-        group.throughput(Throughput::Bytes(size));
+    for size in (0..10)
+        .step_by(2)
+        .map(|i| 1024 * 2u32.pow(i as u32) as usize)
+    {
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            b.iter(|| black_box(create_event(size as usize)).into_bytes().unwrap())
+            b.iter_batched(
+                || black_box(create_event(size)),
+                |event| event.into_bytes().unwrap(),
+                BatchSize::LargeInput,
+            )
         });
     }
     group.finish();

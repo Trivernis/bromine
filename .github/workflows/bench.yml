@@ -27,8 +27,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
+
       - name: Run benchmark
-        run: cargo bench
+        run: cargo bench ${{steps.extract_branch.outputs.branch}}
 
       - name: upload artifact
         uses: actions/upload-artifact@v2

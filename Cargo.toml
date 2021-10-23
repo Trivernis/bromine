@@ -8,6 +8,9 @@ license = "Apache-2.0"
 repository = "https://github.com/Trivernis/rmp-ipc"
 description = "IPC using Rust MessagePack (rmp)"
 
+[lib]
+bench=false
+
 [[bench]]
 name = "serialization_benchmark"
 harness = false
