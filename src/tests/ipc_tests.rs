@@ -205,7 +205,6 @@ async fn test_error_responses() {
         .await
         .unwrap()
         .await_reply(&ctx)
-        .await
-        .unwrap();
-    assert_eq!(reply.name(), "error");
+        .await;
+    assert!(reply.is_err());
 }

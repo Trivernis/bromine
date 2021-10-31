@@ -1,4 +1,5 @@
 use crate::error::Result;
+use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event::Event;
 use crate::events::payload::EventSendPayload;
 use crate::ipc::context::Context;
@@ -119,6 +120,10 @@ impl EmitMetadata {
     #[tracing::instrument(skip(self, ctx), fields(self.message_id))]
     pub async fn await_reply(&self, ctx: &Context) -> Result<Event> {
         let reply = ctx.await_reply(self.message_id).await?;
-        Ok(reply)
+        if reply.name() == ERROR_EVENT_NAME {
+            Err(reply.data::<ErrorEventData>()?.into())
+        } else {
+            Ok(reply)
+        }
     }
 }
