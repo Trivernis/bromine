@@ -88,7 +88,6 @@ pub struct PooledContext {
     contexts: Vec<PoolGuard<Context>>,
 }
 
-#[derive(Clone)]
 pub struct PoolGuard<T>
 where
     T: Clone,
@@ -117,6 +116,20 @@ where
     }
 }
 
+impl<T> Clone for PoolGuard<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        self.acquire();
+
+        Self {
+            inner: self.inner.clone(),
+            count: Arc::clone(&self.count),
+        }
+    }
+}
+
 impl<T> Drop for PoolGuard<T>
 where
     T: Clone,
@@ -137,19 +150,18 @@ where
         }
     }
 
-    /// Acquires the context by adding 1 to the count and
-    /// returning the cloned variant
+    /// Acquires the context by adding 1 to the count
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn acquire(&self) -> Self {
-        self.count.fetch_add(1, Ordering::Relaxed);
-
-        self.clone()
+    pub(crate) fn acquire(&self) {
+        let count = self.count.fetch_add(1, Ordering::Relaxed);
+        tracing::trace!(count);
     }
 
     /// Releases the connection by subtracting from the stored count
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn release(&self) {
-        self.count.fetch_sub(1, Ordering::Relaxed);
+        let count = self.count.fetch_sub(1, Ordering::Relaxed);
+        tracing::trace!(count);
     }
 
     pub(crate) fn count(&self) -> usize {
@@ -173,6 +185,6 @@ impl PooledContext {
             .iter()
             .min_by_key(|c| c.count())
             .unwrap()
-            .acquire()
+            .clone()
     }
 }
