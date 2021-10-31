@@ -1,7 +1,7 @@
 use super::handle_connection;
 use crate::error::Result;
 use crate::events::event_handler::EventHandler;
-use crate::ipc::context::Context;
+use crate::ipc::context::{Context, ReplyListeners};
 use crate::ipc::stream_emitter::StreamEmitter;
 use crate::namespaces::namespace::Namespace;
 use std::collections::HashMap;
@@ -40,7 +40,8 @@ impl IPCServer {
             tokio::spawn(async {
                 let (read_half, write_half) = stream.into_split();
                 let emitter = StreamEmitter::new(write_half);
-                let ctx = Context::new(StreamEmitter::clone(&emitter), data, None);
+                let reply_listeners = ReplyListeners::default();
+                let ctx = Context::new(StreamEmitter::clone(&emitter), data, None, reply_listeners);
 
                 handle_connection(namespaces, handler, read_half, ctx).await;
             });

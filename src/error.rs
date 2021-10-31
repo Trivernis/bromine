@@ -1,3 +1,4 @@
+use crate::error_event::ErrorEventData;
 use thiserror::Error;
 use tokio::sync::oneshot;
 
@@ -25,6 +26,9 @@ pub enum Error {
 
     #[error("Send Error")]
     SendError,
+
+    #[error("Error response: {0}")]
+    ErrorEvent(#[from] ErrorEventData),
 }
 
 impl From<String> for Error {

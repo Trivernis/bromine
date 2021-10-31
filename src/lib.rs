@@ -111,6 +111,7 @@ pub use events::event;
 pub use events::event_handler;
 pub use events::payload;
 pub use ipc::builder::IPCBuilder;
+pub use ipc::context;
 pub use macros::*;
 pub use namespaces::builder::NamespaceBuilder;
 pub use namespaces::namespace;
@@ -122,6 +123,7 @@ pub mod prelude {
     pub use crate::event::Event;
     pub use crate::event_handler::EventHandler;
     pub use crate::ipc::context::Context;
+    pub use crate::ipc::context::{PoolGuard, PooledContext};
     pub use crate::ipc::*;
     pub use crate::macros::*;
     pub use crate::namespace::Namespace;

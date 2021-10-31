@@ -39,8 +39,9 @@ async fn it_receives_events() {
     while !server_running.load(Ordering::Relaxed) {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
-    let ctx = builder.build_client().await.unwrap();
-    let reply = ctx
+    let pool = builder.build_pooled_client(8).await.unwrap();
+    let reply = pool
+        .acquire()
         .emitter
         .emit(
             "ping",
@@ -51,7 +52,7 @@ async fn it_receives_events() {
         )
         .await
         .unwrap()
-        .await_reply(&ctx)
+        .await_reply(&pool.acquire())
         .await
         .unwrap();
     assert_eq!(reply.name(), "pong");
@@ -205,7 +206,6 @@ async fn test_error_responses() {
         .await
         .unwrap()
         .await_reply(&ctx)
-        .await
-        .unwrap();
-    assert_eq!(reply.name(), "error");
+        .await;
+    assert!(reply.is_err());
 }

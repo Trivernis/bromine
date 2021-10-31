@@ -1,6 +1,6 @@
 [package]
 name = "rmp-ipc"
-version = "0.7.2"
+version = "0.8.1"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 readme = "README.md"
