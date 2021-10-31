@@ -122,7 +122,7 @@ where
     T: Clone,
 {
     fn drop(&mut self) {
-        self.count.fetch_sub(1, Ordering::Relaxed);
+        self.release();
     }
 }
 
@@ -139,10 +139,17 @@ where
 
     /// Acquires the context by adding 1 to the count and
     /// returning the cloned variant
-    pub(crate) fn aqcuire(&self) -> Self {
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn acquire(&self) -> Self {
         self.count.fetch_add(1, Ordering::Relaxed);
 
         self.clone()
+    }
+
+    /// Releases the connection by subtracting from the stored count
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn release(&self) {
+        self.count.fetch_sub(1, Ordering::Relaxed);
     }
 
     pub(crate) fn count(&self) -> usize {
@@ -166,6 +173,6 @@ impl PooledContext {
             .iter()
             .min_by_key(|c| c.count())
             .unwrap()
-            .aqcuire()
+            .acquire()
     }
 }
