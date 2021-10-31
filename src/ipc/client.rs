@@ -1,7 +1,7 @@
 use super::handle_connection;
 use crate::error::Result;
 use crate::events::event_handler::EventHandler;
-use crate::ipc::context::Context;
+use crate::ipc::context::{Context, ReplyListeners};
 use crate::ipc::stream_emitter::StreamEmitter;
 use crate::namespaces::namespace::Namespace;
 use std::collections::HashMap;
@@ -14,10 +14,12 @@ use typemap_rev::TypeMap;
 /// The IPC Client to connect to an IPC Server.
 /// Use the [IPCBuilder](crate::builder::IPCBuilder) to create the client.
 /// Usually one does not need to use the IPCClient object directly.
+#[derive(Clone)]
 pub struct IPCClient {
     pub(crate) handler: EventHandler,
     pub(crate) namespaces: HashMap<String, Namespace>,
-    pub(crate) data: TypeMap,
+    pub(crate) data: Arc<RwLock<TypeMap>>,
+    pub(crate) reply_listeners: ReplyListeners,
 }
 
 impl IPCClient {
@@ -31,8 +33,9 @@ impl IPCClient {
         let (tx, rx) = oneshot::channel();
         let ctx = Context::new(
             StreamEmitter::clone(&emitter),
-            Arc::new(RwLock::new(self.data)),
+            self.data,
             Some(tx),
+            self.reply_listeners,
         );
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);

@@ -3,13 +3,15 @@ use crate::events::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event::Event;
 use crate::events::event_handler::EventHandler;
 use crate::ipc::client::IPCClient;
-use crate::ipc::context::Context;
+use crate::ipc::context::{Context, PooledContext, ReplyListeners};
 use crate::ipc::server::IPCServer;
 use crate::namespaces::builder::NamespaceBuilder;
 use crate::namespaces::namespace::Namespace;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use typemap_rev::{TypeMap, TypeMapKey};
 
 /// A builder for the IPC server or client.
@@ -131,15 +133,48 @@ impl IPCBuilder {
     #[tracing::instrument(skip(self))]
     pub async fn build_client(self) -> Result<Context> {
         self.validate()?;
+        let data = Arc::new(RwLock::new(self.data));
+        let reply_listeners = ReplyListeners::default();
         let client = IPCClient {
             namespaces: self.namespaces,
             handler: self.handler,
-            data: self.data,
+            data,
+            reply_listeners,
         };
 
         let ctx = client.connect(&self.address.unwrap()).await?;
 
         Ok(ctx)
+    }
+
+    /// Builds a pooled IPC client
+    /// This causes the builder to actually create `pool_size` clients and
+    /// return a [crate::context::PooledContext] that allows one to [crate::context::PooledContext::acquire] a single context
+    /// to emit events.
+    #[tracing::instrument(skip(self))]
+    pub async fn build_pooled_client(self, pool_size: usize) -> Result<PooledContext> {
+        if pool_size == 0 {
+            Error::BuildError("Pool size must be greater than 0".to_string());
+        }
+        self.validate()?;
+        let data = Arc::new(RwLock::new(self.data));
+        let mut contexts = Vec::new();
+        let address = self.address.unwrap();
+        let reply_listeners = ReplyListeners::default();
+
+        for _ in 0..pool_size {
+            let client = IPCClient {
+                namespaces: self.namespaces.clone(),
+                handler: self.handler.clone(),
+                data: Arc::clone(&data),
+                reply_listeners: Arc::clone(&reply_listeners),
+            };
+
+            let ctx = client.connect(&address).await?;
+            contexts.push(ctx);
+        }
+
+        Ok(PooledContext::new(contexts))
     }
 
     /// Validates that all required fields have been provided
