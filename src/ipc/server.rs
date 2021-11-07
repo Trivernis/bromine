@@ -31,11 +31,10 @@ where
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);
         let data = Arc::new(RwLock::new(self.data));
-        tracing::info!("address = {}", address.to_string());
+        tracing::info!("address = {:?}", address);
 
         while let Ok((stream, remote_address)) = listener.protocol_accept().await {
-            let remote_address = remote_address.to_string();
-            tracing::debug!("remote_address = {}", remote_address);
+            tracing::debug!("remote_address = {:?}", remote_address);
             let handler = Arc::clone(&handler);
             let namespaces = Arc::clone(&namespaces);
             let data = Arc::clone(&data);

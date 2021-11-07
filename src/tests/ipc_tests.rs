@@ -3,10 +3,11 @@ use crate::prelude::*;
 use crate::protocol::AsyncProtocolStream;
 use crate::tests::utils::start_test_server;
 use std::net::ToSocketAddrs;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, UnixListener};
 use typemap_rev::TypeMapKey;
 
 async fn handle_ping_event<P: AsyncProtocolStream>(ctx: &Context<P>, e: Event) -> IPCResult<()> {
@@ -21,19 +22,35 @@ async fn handle_ping_event<P: AsyncProtocolStream>(ctx: &Context<P>, e: Event) -
     Ok(())
 }
 
-fn get_builder_with_ping(address: &str) -> IPCBuilder<TcpListener> {
+fn get_builder_with_ping<L: AsyncStreamProtocolListener>(address: L::AddressType) -> IPCBuilder<L> {
     IPCBuilder::new()
         .on("ping", |ctx, e| Box::pin(handle_ping_event(ctx, e)))
-        .address(address.to_socket_addrs().unwrap().next().unwrap())
+        .address(address)
 }
 
 #[tokio::test]
-async fn it_receives_events() {
-    let builder = get_builder_with_ping("127.0.0.1:8281");
+async fn it_receives_tcp_events() {
+    let socket_address = "127.0.0.1:8281".to_socket_addrs().unwrap().next().unwrap();
+    it_receives_events::<TcpListener>(socket_address).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn it_receives_unix_socket_events() {
+    let socket_path = PathBuf::from("/tmp/test_socket");
+    if socket_path.exists() {
+        std::fs::remove_file(&socket_path).unwrap();
+    }
+    it_receives_events::<UnixListener>(socket_path).await;
+}
+
+async fn it_receives_events<L: 'static + AsyncStreamProtocolListener>(address: L::AddressType) {
+    let builder = get_builder_with_ping::<L>(address.clone());
     let server_running = Arc::new(AtomicBool::new(false));
+
     tokio::spawn({
         let server_running = Arc::clone(&server_running);
-        let builder = get_builder_with_ping("127.0.0.1:8281");
+        let builder = get_builder_with_ping::<L>(address);
         async move {
             server_running.store(true, Ordering::SeqCst);
             builder.build_server().await.unwrap();
