@@ -11,8 +11,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 #[async_trait]
 pub trait AsyncStreamProtocolListener: Sized + Send + Sync {
     type AddressType: Clone + Debug + Send + Sync;
-    type RemoteAddressType: Debug;
-    type Stream: 'static + AsyncProtocolStream<AddressType = Self::AddressType>;
+    type RemoteAddressType: Debug + Send + Sync;
+    type Stream: 'static + AsyncProtocolStream<AddressType = Self::AddressType> + Send + Sync;
 
     async fn protocol_bind(address: Self::AddressType) -> IPCResult<Self>;
 
