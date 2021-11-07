@@ -39,7 +39,7 @@ where
 
 /// A payload wrapper type for sending bytes directly without
 /// serializing them
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct BytePayload {
     bytes: Vec<u8>,
 }
