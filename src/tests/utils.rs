@@ -1,7 +1,9 @@
 use crate::error::Error;
 use crate::IPCBuilder;
 use serde::{Deserialize, Serialize};
+use std::net::ToSocketAddrs;
 use std::time::SystemTime;
+use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -15,8 +17,8 @@ pub fn start_test_server(address: &'static str) -> oneshot::Receiver<bool> {
     let (tx, rx) = oneshot::channel();
     tokio::task::spawn(async move {
         tx.send(true).unwrap();
-        IPCBuilder::new()
-            .address(address)
+        IPCBuilder::<TcpListener>::new()
+            .address(address.to_socket_addrs().unwrap().next().unwrap())
             .on("ping", |ctx, event| {
                 Box::pin(async move {
                     ctx.emitter.emit_response(event.id(), "pong", ()).await?;

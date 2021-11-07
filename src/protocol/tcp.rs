@@ -1,17 +1,9 @@
 use crate::prelude::IPCResult;
-use crate::protocol::{AsyncProtocolStream, AsyncStreamProtocol, AsyncStreamProtocolListener};
+use crate::protocol::{AsyncProtocolStream, AsyncProtocolStreamSplit, AsyncStreamProtocolListener};
 use async_trait::async_trait;
 use std::net::SocketAddr;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
-
-pub struct TcpProtocol;
-
-#[async_trait]
-impl AsyncStreamProtocol for TcpProtocol {
-    type Listener = TcpListener;
-    type Stream = TcpStream;
-}
 
 #[async_trait]
 impl AsyncStreamProtocolListener for TcpListener {
@@ -32,19 +24,22 @@ impl AsyncStreamProtocolListener for TcpListener {
     }
 }
 
+impl AsyncProtocolStreamSplit for TcpStream {
+    type OwnedSplitReadHalf = OwnedReadHalf;
+    type OwnedSplitWriteHalf = OwnedWriteHalf;
+
+    fn protocol_into_split(self) -> (Self::OwnedSplitReadHalf, Self::OwnedSplitWriteHalf) {
+        self.into_split()
+    }
+}
+
 #[async_trait]
 impl AsyncProtocolStream for TcpStream {
     type AddressType = SocketAddr;
-    type OwnedSplitReadHalf = OwnedReadHalf;
-    type OwnedSplitWriteHalf = OwnedWriteHalf;
 
     async fn protocol_connect(address: Self::AddressType) -> IPCResult<Self> {
         let stream = TcpStream::connect(address).await?;
 
         Ok(stream)
-    }
-
-    async fn protocol_into_split(self) -> (Self::OwnedSplitReadHalf, Self::OwnedSplitWriteHalf) {
-        self.into_split()
     }
 }

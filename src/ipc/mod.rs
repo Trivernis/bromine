@@ -2,9 +2,9 @@ use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event_handler::EventHandler;
 use crate::namespaces::namespace::Namespace;
 use crate::prelude::*;
+use crate::protocol::AsyncProtocolStream;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::net::tcp::OwnedReadHalf;
 
 pub mod builder;
 pub mod client;
@@ -13,11 +13,11 @@ pub mod server;
 pub mod stream_emitter;
 
 /// Handles listening to a connection and triggering the corresponding event functions
-async fn handle_connection(
-    namespaces: Arc<HashMap<String, Namespace>>,
-    handler: Arc<EventHandler>,
-    mut read_half: OwnedReadHalf,
-    ctx: Context,
+async fn handle_connection<S: 'static + AsyncProtocolStream>(
+    namespaces: Arc<HashMap<String, Namespace<S>>>,
+    handler: Arc<EventHandler<S>>,
+    mut read_half: S::OwnedSplitReadHalf,
+    ctx: Context<S>,
 ) {
     while let Ok(event) = Event::from_async_read(&mut read_half).await {
         tracing::trace!(
@@ -52,7 +52,11 @@ async fn handle_connection(
 }
 
 /// Handles a single event in a different tokio context
-fn handle_event(ctx: Context, handler: Arc<EventHandler>, event: Event) {
+fn handle_event<S: 'static + AsyncProtocolStream>(
+    ctx: Context<S>,
+    handler: Arc<EventHandler<S>>,
+    event: Event,
+) {
     tokio::spawn(async move {
         let id = event.id();
         if let Err(e) = handler.handle_event(&ctx, event).await {
