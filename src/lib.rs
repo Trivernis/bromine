@@ -105,6 +105,7 @@ mod events;
 pub mod ipc;
 mod macros;
 mod namespaces;
+pub(crate) mod protocol;
 
 pub use events::error_event;
 pub use events::event;

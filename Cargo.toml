@@ -26,6 +26,7 @@ tracing = "0.1.29"
 lazy_static = "1.4.0"
 typemap_rev = "0.1.5"
 byteorder = "1.4.3"
+async-trait = "0.1.51"
 
 [dependencies.serde]
 version = "1.0.130"
