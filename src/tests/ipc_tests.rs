@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use tokio::net::{TcpListener, UnixListener};
+use tokio::net::TcpListener;
 use typemap_rev::TypeMapKey;
 
 async fn handle_ping_event<P: AsyncProtocolStream>(ctx: &Context<P>, e: Event) -> IPCResult<()> {
@@ -41,7 +41,7 @@ async fn it_receives_unix_socket_events() {
     if socket_path.exists() {
         std::fs::remove_file(&socket_path).unwrap();
     }
-    it_receives_events::<UnixListener>(socket_path).await;
+    it_receives_events::<tokio::net::UnixListener>(socket_path).await;
 }
 
 async fn it_receives_events<L: 'static + AsyncStreamProtocolListener>(address: L::AddressType) {
