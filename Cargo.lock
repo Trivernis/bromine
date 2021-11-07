@@ -500,8 +500,9 @@ dependencies = [
 
 [[package]]
 name = "rmp-ipc"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
+ "byteorder",
  "criterion",
  "lazy_static",
  "rmp-serde",
