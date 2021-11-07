@@ -4,7 +4,6 @@ use crate::events::event::Event;
 use crate::events::payload::EventSendPayload;
 use crate::ipc::context::Context;
 use crate::protocol::AsyncProtocolStream;
-use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
@@ -38,7 +37,7 @@ where
     }
 
     #[tracing::instrument(level = "trace", skip(self, data))]
-    pub async fn _emit<T: EventSendPayload + Debug>(
+    pub async fn _emit<T: EventSendPayload>(
         &self,
         namespace: Option<&str>,
         event: &str,
@@ -66,7 +65,7 @@ where
     }
 
     /// Emits an event
-    pub async fn emit<S: AsRef<str>, T: EventSendPayload + Debug>(
+    pub async fn emit<S: AsRef<str>, T: EventSendPayload>(
         &self,
         event: S,
         data: T,
@@ -75,7 +74,7 @@ where
     }
 
     /// Emits an event to a specific namespace
-    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload + Debug>(
+    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload>(
         &self,
         namespace: S1,
         event: S2,
@@ -86,7 +85,7 @@ where
     }
 
     /// Emits a response to an event
-    pub async fn emit_response<S: AsRef<str>, T: EventSendPayload + Debug>(
+    pub async fn emit_response<S: AsRef<str>, T: EventSendPayload>(
         &self,
         event_id: u64,
         event: S,
@@ -96,7 +95,7 @@ where
     }
 
     /// Emits a response to an event to a namespace
-    pub async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload + Debug>(
+    pub async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload>(
         &self,
         event_id: u64,
         namespace: S1,
