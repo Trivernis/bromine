@@ -6,10 +6,11 @@ Interprocess Communication via TCP using Rust MessagePack.
 
 **Client:**
 ```rust
-use rmp_ipc::{callback, Event, context::Context, IPCBuilder, error::Result};
+use rmp_ipc::prelude::*;
+use tokio::net::TcpListener;
 
 /// Callback ping function
-async fn handle_ping(ctx: &Context, event: Event) -> Result<()> {
+async fn handle_ping<S: AsyncProtocolStream>(ctx: &Context<S>, event: Event) -> Result<()> {
     println!("Received ping event.");
     ctx.emitter.emit_response(event.id(), "pong", ()).await?;
     Ok(())
@@ -18,7 +19,7 @@ async fn handle_ping(ctx: &Context, event: Event) -> Result<()> {
 #[tokio::main]
 async fn main() {
     // create the client
-    let ctx = IPCBuilder::new()
+    let ctx = IPCBuilder::<TcpListener>::new()
         .address("127.0.0.1:2020")
         // register callback
         .on("ping", callback!(handle_ping))
@@ -31,12 +32,13 @@ async fn main() {
 
 **Server:**
 ```rust
-use rmp_ipc::{IPCBuilder, callback};
+use rmp_ipc::prelude::*;
+use tokio::net::TcpListener;
 // create the server
 
 #[tokio::main]
 async fn main() {
-    IPCBuilder::new()
+    IPCBuilder::<TcpListener>::new()
         .address("127.0.0.1:2020")
         // register callback
         .on("ping", callback!(ctx, event, async move {
@@ -51,12 +53,13 @@ async fn main() {
 
 **Client:**
 ```rust
-use rmp_ipc::IPCBuilder;
+use rmp_ipc::prelude::*;
+use tokio::net::TcpListener;
 // create the client
 
 #[tokio::main]
 async fn main() {
-    let ctx = IPCBuilder::new()
+    let ctx = IPCBuilder::<TcpListener>::new()
         .address("127.0.0.1:2020")
         // register namespace
         .namespace("mainspace-client")
@@ -76,13 +79,14 @@ async fn main() {
 
 **Server:**
 ```rust
-use rmp_ipc::{IPCBuilder, EventHandler, namespace, command, Event, context::Context};
+use rmp_ipc::prelude::*;
+use tokio::net::TcpListener;
 // create the server
 
 pub struct MyNamespace;
 
 impl MyNamespace {
-     async fn ping(_ctx: &Context, _event: Event) -> Result<()> {
+     async fn ping<S: AsyncProtocolStream>(_ctx: &Context<S>, _event: Event) -> Result<()> {
          println!("My namespace received a ping");
          Ok(())
      }
@@ -91,7 +95,7 @@ impl MyNamespace {
 impl NamespaceProvider for MyNamespace {
      fn name() -> &'static str {"my_namespace"}
  
-     fn register(handler: &mut EventHandler) {
+     fn register<S: AsyncProtocolStream>(handler: &mut EventHandler<S>) {
          events!(handler, 
             "ping" => Self::ping
          );
@@ -100,7 +104,7 @@ impl NamespaceProvider for MyNamespace {
 
 #[tokio::main]
 async fn main() {
-    IPCBuilder::new()
+    IPCBuilder::<TcpListener>::new()
         .address("127.0.0.1:2020")
         // register namespace
         .namespace("mainspace-server")

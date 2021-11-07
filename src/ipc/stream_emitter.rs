@@ -3,22 +3,35 @@ use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event::Event;
 use crate::events::payload::EventSendPayload;
 use crate::ipc::context::Context;
+use crate::protocol::AsyncProtocolStream;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
-use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
 
 /// An abstraction over the raw tokio tcp stream
 /// to emit events and share a connection across multiple
 /// contexts.
-#[derive(Clone)]
-pub struct StreamEmitter {
-    stream: Arc<Mutex<OwnedWriteHalf>>,
+pub struct StreamEmitter<S: AsyncProtocolStream> {
+    stream: Arc<Mutex<S::OwnedSplitWriteHalf>>,
 }
 
-impl StreamEmitter {
-    pub fn new(stream: OwnedWriteHalf) -> Self {
+impl<S> Clone for StreamEmitter<S>
+where
+    S: AsyncProtocolStream,
+{
+    fn clone(&self) -> Self {
+        Self {
+            stream: Arc::clone(&self.stream),
+        }
+    }
+}
+
+impl<P> StreamEmitter<P>
+where
+    P: AsyncProtocolStream,
+{
+    pub fn new(stream: P::OwnedSplitWriteHalf) -> Self {
         Self {
             stream: Arc::new(Mutex::new(stream)),
         }
@@ -118,7 +131,7 @@ impl EmitMetadata {
 
     /// Waits for a reply to the given message.
     #[tracing::instrument(skip(self, ctx), fields(self.message_id))]
-    pub async fn await_reply(&self, ctx: &Context) -> Result<Event> {
+    pub async fn await_reply<P: AsyncProtocolStream>(&self, ctx: &Context<P>) -> Result<Event> {
         let reply = ctx.await_reply(self.message_id).await?;
         if reply.name() == ERROR_EVENT_NAME {
             Err(reply.data::<ErrorEventData>()?.into())
