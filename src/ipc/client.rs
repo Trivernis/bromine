@@ -7,6 +7,7 @@ use crate::namespaces::namespace::Namespace;
 use crate::protocol::AsyncProtocolStream;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::oneshot;
 use tokio::sync::RwLock;
 use typemap_rev::TypeMap;
@@ -20,6 +21,7 @@ pub struct IPCClient<S: AsyncProtocolStream> {
     pub(crate) namespaces: HashMap<String, Namespace<S>>,
     pub(crate) data: Arc<RwLock<TypeMap>>,
     pub(crate) reply_listeners: ReplyListeners,
+    pub(crate) timeout: Duration,
 }
 
 impl<S> IPCClient<S>
@@ -39,6 +41,7 @@ where
             self.data,
             Some(tx),
             self.reply_listeners,
+            self.timeout,
         );
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);

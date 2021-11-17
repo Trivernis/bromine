@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 use typemap_rev::{TypeMap, TypeMapKey};
 
@@ -54,6 +55,7 @@ pub struct IPCBuilder<L: AsyncStreamProtocolListener> {
     address: Option<L::AddressType>,
     namespaces: HashMap<String, Namespace<L::Stream>>,
     data: TypeMap,
+    timeout: Duration,
 }
 
 impl<L> IPCBuilder<L>
@@ -76,6 +78,7 @@ where
             address: None,
             namespaces: HashMap::new(),
             data: TypeMap::new(),
+            timeout: Duration::from_secs(60),
         }
     }
 
@@ -121,6 +124,13 @@ where
         self
     }
 
+    /// Sets the timeout when listening for a response
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+
+        self
+    }
+
     /// Builds an ipc server
     #[tracing::instrument(skip(self))]
     pub async fn build_server(self) -> Result<()> {
@@ -129,6 +139,7 @@ where
             namespaces: self.namespaces,
             handler: self.handler,
             data: self.data,
+            timeout: self.timeout,
         };
         server.start(self.address.unwrap()).await?;
 
@@ -146,6 +157,7 @@ where
             handler: self.handler,
             data,
             reply_listeners,
+            timeout: self.timeout,
         };
 
         let ctx = client.connect(self.address.unwrap()).await?;
@@ -174,6 +186,7 @@ where
                 handler: self.handler.clone(),
                 data: Arc::clone(&data),
                 reply_listeners: Arc::clone(&reply_listeners),
+                timeout: self.timeout.clone(),
             };
 
             let ctx = client.connect(address.clone()).await?;

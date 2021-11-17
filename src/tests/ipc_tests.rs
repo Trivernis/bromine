@@ -11,6 +11,7 @@ use tokio::net::TcpListener;
 use typemap_rev::TypeMapKey;
 
 async fn handle_ping_event<P: AsyncProtocolStream>(ctx: &Context<P>, e: Event) -> IPCResult<()> {
+    tokio::time::sleep(Duration::from_secs(1)).await;
     let mut ping_data = e.data::<PingEventData>()?;
     ping_data.time = SystemTime::now();
     ping_data.ttl -= 1;
@@ -25,6 +26,7 @@ async fn handle_ping_event<P: AsyncProtocolStream>(ctx: &Context<P>, e: Event) -
 fn get_builder_with_ping<L: AsyncStreamProtocolListener>(address: L::AddressType) -> IPCBuilder<L> {
     IPCBuilder::new()
         .on("ping", |ctx, e| Box::pin(handle_ping_event(ctx, e)))
+        .timeout(Duration::from_secs(10))
         .address(address)
 }
 
