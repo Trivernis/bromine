@@ -29,6 +29,9 @@ pub enum Error {
 
     #[error("Error response: {0}")]
     ErrorEvent(#[from] ErrorEventData),
+
+    #[error("Timed out")]
+    Timeout,
 }
 
 impl From<String> for Error {

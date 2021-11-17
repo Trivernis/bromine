@@ -7,6 +7,7 @@ use crate::namespaces::namespace::Namespace;
 use crate::protocol::{AsyncProtocolStreamSplit, AsyncStreamProtocolListener};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 use typemap_rev::TypeMap;
 
@@ -17,6 +18,7 @@ pub struct IPCServer<L: AsyncStreamProtocolListener> {
     pub(crate) handler: EventHandler<L::Stream>,
     pub(crate) namespaces: HashMap<String, Namespace<L::Stream>>,
     pub(crate) data: TypeMap,
+    pub(crate) timeout: Duration,
 }
 
 impl<L> IPCServer<L>
@@ -38,12 +40,19 @@ where
             let handler = Arc::clone(&handler);
             let namespaces = Arc::clone(&namespaces);
             let data = Arc::clone(&data);
+            let timeout = self.timeout.clone();
 
-            tokio::spawn(async {
+            tokio::spawn(async move {
                 let (read_half, write_half) = stream.protocol_into_split();
                 let emitter = StreamEmitter::new(write_half);
                 let reply_listeners = ReplyListeners::default();
-                let ctx = Context::new(StreamEmitter::clone(&emitter), data, None, reply_listeners);
+                let ctx = Context::new(
+                    StreamEmitter::clone(&emitter),
+                    data,
+                    None,
+                    reply_listeners,
+                    timeout.into(),
+                );
 
                 handle_connection(namespaces, handler, read_half, ctx).await;
             });
