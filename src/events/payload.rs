@@ -99,8 +99,8 @@ where
         let mut p1_bytes = self.load1.to_payload_bytes()?;
         let mut p2_bytes = self.load2.to_payload_bytes()?;
 
-        let mut p1_length_bytes = (p1_bytes.len() as u32).to_be_bytes().to_vec();
-        let mut p2_length_bytes = (p2_bytes.len() as u32).to_be_bytes().to_vec();
+        let mut p1_length_bytes = (p1_bytes.len() as u64).to_be_bytes().to_vec();
+        let mut p2_length_bytes = (p2_bytes.len() as u64).to_be_bytes().to_vec();
 
         let mut bytes = Vec::new();
         bytes.append(&mut p1_length_bytes);
@@ -118,11 +118,11 @@ where
     P2: EventReceivePayload,
 {
     fn from_payload_bytes<R: Read>(mut reader: R) -> IPCResult<Self> {
-        let p1_length = reader.read_u32::<BigEndian>()?;
+        let p1_length = reader.read_u64::<BigEndian>()?;
         let mut load1_bytes = vec![0u8; p1_length as usize];
         reader.read_exact(&mut load1_bytes)?;
 
-        let p2_length = reader.read_u32::<BigEndian>()?;
+        let p2_length = reader.read_u64::<BigEndian>()?;
         let mut load2_bytes = vec![0u8; p2_length as usize];
         reader.read_exact(&mut load2_bytes)?;
 
