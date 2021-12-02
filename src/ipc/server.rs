@@ -14,21 +14,21 @@ use typemap_rev::TypeMap;
 /// The IPC Server listening for connections.
 /// Use the [IPCBuilder](crate::builder::IPCBuilder) to create a server.
 /// Usually one does not need to use the IPCServer object directly.
-pub struct IPCServer<L: AsyncStreamProtocolListener> {
-    pub(crate) handler: EventHandler<L::Stream>,
-    pub(crate) namespaces: HashMap<String, Namespace<L::Stream>>,
+pub struct IPCServer {
+    pub(crate) handler: EventHandler,
+    pub(crate) namespaces: HashMap<String, Namespace>,
     pub(crate) data: TypeMap,
     pub(crate) timeout: Duration,
 }
 
-impl<L> IPCServer<L>
-where
-    L: AsyncStreamProtocolListener,
-{
+impl IPCServer {
     /// Starts the IPC Server.
     /// Invoked by [IPCBuilder::build_server](crate::builder::IPCBuilder::build_server)
     #[tracing::instrument(skip(self))]
-    pub async fn start(self, address: L::AddressType) -> Result<()> {
+    pub async fn start<L: AsyncStreamProtocolListener>(
+        self,
+        address: L::AddressType,
+    ) -> Result<()> {
         let listener = L::protocol_bind(address.clone()).await?;
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);
@@ -44,7 +44,7 @@ where
 
             tokio::spawn(async move {
                 let (read_half, write_half) = stream.protocol_into_split();
-                let emitter = StreamEmitter::new(write_half);
+                let emitter = StreamEmitter::new::<L::Stream>(write_half);
                 let reply_listeners = ReplyListeners::default();
                 let ctx = Context::new(
                     StreamEmitter::clone(&emitter),
@@ -54,7 +54,7 @@ where
                     timeout.into(),
                 );
 
-                handle_connection(namespaces, handler, read_half, ctx).await;
+                handle_connection::<L::Stream>(namespaces, handler, read_half, ctx).await;
             });
         }
 

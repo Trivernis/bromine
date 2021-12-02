@@ -6,7 +6,7 @@
 //! use tokio::net::TcpListener;
 //!
 //! /// Callback ping function
-//! async fn handle_ping<S: AsyncProtocolStream>(ctx: &Context<S>, event: Event) -> IPCResult<()> {
+//! async fn handle_ping(ctx: &Context, event: Event) -> IPCResult<()> {
 //!     println!("Received ping event.");
 //!     ctx.emitter.emit_response(event.id(), "pong", ()).await?;
 //!
@@ -16,7 +16,7 @@
 //! pub struct MyNamespace;
 //!
 //! impl MyNamespace {
-//!     async fn ping<S: AsyncProtocolStream>(_ctx: &Context<S>, _event: Event) -> IPCResult<()> {
+//!     async fn ping(_ctx: &Context, _event: Event) -> IPCResult<()> {
 //!         println!("My namespace received a ping");
 //!         Ok(())
 //!     }
@@ -25,7 +25,7 @@
 //! impl NamespaceProvider for MyNamespace {
 //!     fn name() -> &'static str {"my_namespace"}
 //!
-//!     fn register<S: AsyncProtocolStream>(handler: &mut EventHandler<S>) {
+//!     fn register(handler: &mut EventHandler) {
 //!         events!(handler,
 //!             "ping" => Self::ping,
 //!             "ping2" => Self::ping

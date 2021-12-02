@@ -1,6 +1,5 @@
 use super::utils::PingEventData;
 use crate::prelude::*;
-use crate::protocol::AsyncProtocolStream;
 use crate::tests::utils::start_test_server;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
@@ -10,7 +9,7 @@ use std::time::{Duration, SystemTime};
 use tokio::net::TcpListener;
 use typemap_rev::TypeMapKey;
 
-async fn handle_ping_event<P: AsyncProtocolStream>(ctx: &Context<P>, e: Event) -> IPCResult<()> {
+async fn handle_ping_event(ctx: &Context, e: Event) -> IPCResult<()> {
     tokio::time::sleep(Duration::from_secs(1)).await;
     let mut ping_data = e.data::<PingEventData>()?;
     ping_data.time = SystemTime::now();
@@ -91,7 +90,7 @@ fn get_builder_with_ping_namespace(address: &str) -> IPCBuilder<TcpListener> {
 pub struct TestNamespace;
 
 impl TestNamespace {
-    async fn ping<P: AsyncProtocolStream>(_c: &Context<P>, _e: Event) -> IPCResult<()> {
+    async fn ping(_c: &Context, _e: Event) -> IPCResult<()> {
         println!("Ping received");
         Ok(())
     }
@@ -102,7 +101,7 @@ impl NamespaceProvider for TestNamespace {
         "Test"
     }
 
-    fn register<S: AsyncProtocolStream>(handler: &mut EventHandler<S>) {
+    fn register(handler: &mut EventHandler) {
         events!(handler,
             "ping" => Self::ping,
             "ping2" => Self::ping

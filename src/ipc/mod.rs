@@ -14,10 +14,10 @@ pub mod stream_emitter;
 
 /// Handles listening to a connection and triggering the corresponding event functions
 async fn handle_connection<S: 'static + AsyncProtocolStream>(
-    namespaces: Arc<HashMap<String, Namespace<S>>>,
-    handler: Arc<EventHandler<S>>,
+    namespaces: Arc<HashMap<String, Namespace>>,
+    handler: Arc<EventHandler>,
     mut read_half: S::OwnedSplitReadHalf,
-    ctx: Context<S>,
+    ctx: Context,
 ) {
     while let Ok(event) = Event::from_async_read(&mut read_half).await {
         tracing::trace!(
@@ -52,11 +52,7 @@ async fn handle_connection<S: 'static + AsyncProtocolStream>(
 }
 
 /// Handles a single event in a different tokio context
-fn handle_event<S: 'static + AsyncProtocolStream>(
-    ctx: Context<S>,
-    handler: Arc<EventHandler<S>>,
-    event: Event,
-) {
+fn handle_event(ctx: Context, handler: Arc<EventHandler>, event: Event) {
     tokio::spawn(async move {
         let id = event.id();
         if let Err(e) = handler.handle_event(&ctx, event).await {

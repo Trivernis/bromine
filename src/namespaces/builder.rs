@@ -10,7 +10,7 @@ use std::pin::Pin;
 
 pub struct NamespaceBuilder<L: AsyncStreamProtocolListener> {
     name: String,
-    handler: EventHandler<L::Stream>,
+    handler: EventHandler,
     ipc_builder: IPCBuilder<L>,
 }
 
@@ -30,7 +30,7 @@ where
     pub fn on<F: 'static>(mut self, event: &str, callback: F) -> Self
     where
         F: for<'a> Fn(
-                &'a Context<L::Stream>,
+                &'a Context,
                 Event,
             ) -> Pin<Box<(dyn Future<Output = Result<()>> + Send + 'a)>>
             + Send

@@ -51,9 +51,9 @@ use typemap_rev::{TypeMap, TypeMapKey};
 ///# }
 /// ```
 pub struct IPCBuilder<L: AsyncStreamProtocolListener> {
-    handler: EventHandler<L::Stream>,
+    handler: EventHandler,
     address: Option<L::AddressType>,
-    namespaces: HashMap<String, Namespace<L::Stream>>,
+    namespaces: HashMap<String, Namespace>,
     data: TypeMap,
     timeout: Duration,
 }
@@ -93,7 +93,7 @@ where
     pub fn on<F: 'static>(mut self, event: &str, callback: F) -> Self
     where
         F: for<'a> Fn(
-                &'a Context<L::Stream>,
+                &'a Context,
                 Event,
             ) -> Pin<Box<(dyn Future<Output = Result<()>> + Send + 'a)>>
             + Send
@@ -117,7 +117,7 @@ where
     }
 
     /// Adds a namespace to the ipc server
-    pub fn add_namespace(mut self, namespace: Namespace<L::Stream>) -> Self {
+    pub fn add_namespace(mut self, namespace: Namespace) -> Self {
         self.namespaces
             .insert(namespace.name().to_owned(), namespace);
 
@@ -135,20 +135,20 @@ where
     #[tracing::instrument(skip(self))]
     pub async fn build_server(self) -> Result<()> {
         self.validate()?;
-        let server = IPCServer::<L> {
+        let server = IPCServer {
             namespaces: self.namespaces,
             handler: self.handler,
             data: self.data,
             timeout: self.timeout,
         };
-        server.start(self.address.unwrap()).await?;
+        server.start::<L>(self.address.unwrap()).await?;
 
         Ok(())
     }
 
     /// Builds an ipc client
     #[tracing::instrument(skip(self))]
-    pub async fn build_client(self) -> Result<Context<L::Stream>> {
+    pub async fn build_client(self) -> Result<Context> {
         self.validate()?;
         let data = Arc::new(RwLock::new(self.data));
         let reply_listeners = ReplyListeners::default();
@@ -160,7 +160,7 @@ where
             timeout: self.timeout,
         };
 
-        let ctx = client.connect(self.address.unwrap()).await?;
+        let ctx = client.connect::<L::Stream>(self.address.unwrap()).await?;
 
         Ok(ctx)
     }
@@ -170,7 +170,7 @@ where
     /// return a [crate::context::PooledContext] that allows one to [crate::context::PooledContext::acquire] a single context
     /// to emit events.
     #[tracing::instrument(skip(self))]
-    pub async fn build_pooled_client(self, pool_size: usize) -> Result<PooledContext<L::Stream>> {
+    pub async fn build_pooled_client(self, pool_size: usize) -> Result<PooledContext> {
         if pool_size == 0 {
             Error::BuildError("Pool size must be greater than 0".to_string());
         }
@@ -189,7 +189,7 @@ where
                 timeout: self.timeout.clone(),
             };
 
-            let ctx = client.connect(address.clone()).await?;
+            let ctx = client.connect::<L::Stream>(address.clone()).await?;
             contexts.push(ctx);
         }
 

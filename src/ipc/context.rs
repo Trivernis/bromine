@@ -1,7 +1,6 @@
 use crate::error::{Error, Result};
 use crate::event::Event;
 use crate::ipc::stream_emitter::StreamEmitter;
-use crate::protocol::AsyncProtocolStream;
 use futures::future;
 use futures::future::Either;
 use std::collections::HashMap;
@@ -21,16 +20,17 @@ pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>
 /// ```rust
 /// use bromine::prelude::*;
 ///
-/// async fn my_callback<S: AsyncProtocolStream>(ctx: &Context<S>, _event: Event) -> IPCResult<()> {
+/// async fn my_callback(ctx: &Context, _event: Event) -> IPCResult<()> {
 ///     // use the emitter on the context object to emit events
 ///     // inside callbacks
 ///     ctx.emitter.emit("ping", ()).await?;
 ///     Ok(())
 /// }
 /// ```
-pub struct Context<S: AsyncProtocolStream> {
+#[derive(Clone)]
+pub struct Context {
     /// The event emitter
-    pub emitter: StreamEmitter<S>,
+    pub emitter: StreamEmitter,
 
     /// Field to store additional context data
     pub data: Arc<RwLock<TypeMap>>,
@@ -42,27 +42,9 @@ pub struct Context<S: AsyncProtocolStream> {
     reply_timeout: Duration,
 }
 
-impl<S> Clone for Context<S>
-where
-    S: AsyncProtocolStream,
-{
-    fn clone(&self) -> Self {
-        Self {
-            emitter: self.emitter.clone(),
-            data: Arc::clone(&self.data),
-            stop_sender: Arc::clone(&self.stop_sender),
-            reply_listeners: Arc::clone(&self.reply_listeners),
-            reply_timeout: self.reply_timeout.clone(),
-        }
-    }
-}
-
-impl<P> Context<P>
-where
-    P: AsyncProtocolStream,
-{
+impl Context {
     pub(crate) fn new(
-        emitter: StreamEmitter<P>,
+        emitter: StreamEmitter,
         data: Arc<RwLock<TypeMap>>,
         stop_sender: Option<Sender<()>>,
         reply_listeners: ReplyListeners,
@@ -121,19 +103,8 @@ where
     }
 }
 
-pub struct PooledContext<S: AsyncProtocolStream> {
-    contexts: Vec<PoolGuard<Context<S>>>,
-}
-
-impl<S> Clone for PooledContext<S>
-where
-    S: AsyncProtocolStream,
-{
-    fn clone(&self) -> Self {
-        Self {
-            contexts: self.contexts.clone(),
-        }
-    }
+pub struct PooledContext {
+    contexts: Vec<PoolGuard<Context>>,
 }
 
 pub struct PoolGuard<T>
@@ -217,12 +188,9 @@ where
     }
 }
 
-impl<P> PooledContext<P>
-where
-    P: AsyncProtocolStream,
-{
+impl PooledContext {
     /// Creates a new pooled context from a list of contexts
-    pub(crate) fn new(contexts: Vec<Context<P>>) -> Self {
+    pub(crate) fn new(contexts: Vec<Context>) -> Self {
         Self {
             contexts: contexts.into_iter().map(PoolGuard::new).collect(),
         }
@@ -231,7 +199,7 @@ where
     /// Acquires a context from the pool
     /// It always chooses the one that is used the least
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn acquire(&self) -> PoolGuard<Context<P>> {
+    pub fn acquire(&self) -> PoolGuard<Context> {
         self.contexts
             .iter()
             .min_by_key(|c| c.count())

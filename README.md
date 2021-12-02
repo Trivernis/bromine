@@ -16,7 +16,7 @@ use bromine::prelude::*;
 use tokio::net::TcpListener;
 
 /// Callback ping function
-async fn handle_ping<S: AsyncProtocolStream>(ctx: &Context<S>, event: Event) -> Result<()> {
+async fn handle_ping(ctx: &Context, event: Event) -> Result<()> {
     println!("Received ping event.");
     ctx.emitter.emit_response(event.id(), "pong", ()).await?;
     Ok(())
@@ -95,7 +95,7 @@ use tokio::net::TcpListener;
 pub struct MyNamespace;
 
 impl MyNamespace {
-     async fn ping<S: AsyncProtocolStream>(_ctx: &Context<S>, _event: Event) -> Result<()> {
+     async fn ping(_ctx: &Context, _event: Event) -> Result<()> {
          println!("My namespace received a ping");
          Ok(())
      }
@@ -104,7 +104,7 @@ impl MyNamespace {
 impl NamespaceProvider for MyNamespace {
      fn name() -> &'static str {"my_namespace"}
  
-     fn register<S: AsyncProtocolStream>(handler: &mut EventHandler<S>) {
+     fn register(handler: &mut EventHandler) {
          events!(handler, 
             "ping" => Self::ping
          );
