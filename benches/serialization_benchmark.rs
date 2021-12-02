@@ -1,7 +1,7 @@
+use bromine::event::Event;
 use criterion::{
     black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
 };
-use rmp_ipc::event::Event;
 
 pub const EVENT_NAME: &str = "bench_event";
 
