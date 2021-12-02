@@ -1,12 +1,12 @@
 [package]
-name = "rmp-ipc"
+name = "bromine"
 version = "0.5.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 readme = "README.md"
 license = "Apache-2.0"
-repository = "https://github.com/Trivernis/rmp-ipc"
-description = "IPC using Rust MessagePack (rmp)"
+repository = "https://github.com/Trivernis/bromine/"
+description = "A flexible ipc protocol (previously rmp-ipc)"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

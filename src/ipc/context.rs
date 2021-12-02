@@ -11,7 +11,7 @@ use typemap_rev::TypeMap;
 /// An object provided to each callback function.
 /// Currently it only holds the event emitter to emit response events in event callbacks.
 /// ```rust
-/// use rmp_ipc::prelude::*;
+/// use bromine::prelude::*;
 ///
 /// async fn my_callback(ctx: &Context, _event: Event) -> IPCResult<()> {
 ///     // use the emitter on the context object to emit events

@@ -2,7 +2,7 @@
 //! messagepack. All calls are asynchronous and event based.
 //! Client Example:
 //! ```no_run
-//! use rmp_ipc::prelude::*;
+//! use bromine::prelude::*;
 //!
 //! /// Callback ping function
 //! async fn handle_ping(ctx: &Context, event: Event) -> IPCResult<()> {
@@ -56,8 +56,8 @@
 //! Server Example:
 //! ```no_run
 //! use typemap_rev::TypeMapKey;
-//! use rmp_ipc::IPCBuilder;
-//! use rmp_ipc::callback;
+//! use bromine::IPCBuilder;
+//! use bromine::callback;
 //!
 //! struct MyKey;
 //!

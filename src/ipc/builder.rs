@@ -15,7 +15,7 @@ use typemap_rev::{TypeMap, TypeMapKey};
 /// A builder for the IPC server or client.
 /// ```no_run
 ///use typemap_rev::TypeMapKey;
-/// use rmp_ipc::IPCBuilder;
+/// use bromine::IPCBuilder;
 ///
 /// struct CustomKey;
 ///

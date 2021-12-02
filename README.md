@@ -1,12 +1,18 @@
-# rmp-ipc
+<h1 align="center">
+bromine
+</h1>
+<p align="center">
+Asynchronous event driven interprocess communication supporting tcp and unix domain sockets.
+</p>
 
-Interprocess Communication via TCP using Rust MessagePack.
+- - -
 
 ## Usage
 
 **Client:**
+
 ```rust
-use rmp_ipc::{callback, Event, context::Context, IPCBuilder, error::Result};
+use bromine::{callback, Event, context::Context, IPCBuilder, error::Result};
 
 /// Callback ping function
 async fn handle_ping(ctx: &Context, event: Event) -> Result<()> {
@@ -30,8 +36,9 @@ async fn main() {
 ```
 
 **Server:**
+
 ```rust
-use rmp_ipc::{IPCBuilder, callback};
+use bromine::{IPCBuilder, callback};
 // create the server
 
 #[tokio::main]
@@ -50,8 +57,9 @@ async fn main() {
 ### Namespaces
 
 **Client:**
+
 ```rust
-use rmp_ipc::IPCBuilder;
+use bromine::IPCBuilder;
 // create the client
 
 #[tokio::main]
@@ -75,25 +83,26 @@ async fn main() {
 ```
 
 **Server:**
+
 ```rust
-use rmp_ipc::{IPCBuilder, EventHandler, namespace, command, Event, context::Context};
+use bromine::{IPCBuilder, EventHandler, namespace, command, Event, context::Context};
 // create the server
 
 pub struct MyNamespace;
 
 impl MyNamespace {
-     async fn ping(_ctx: &Context, _event: Event) -> Result<()> {
-         println!("My namespace received a ping");
-         Ok(())
-     }
+    async fn ping(_ctx: &Context, _event: Event) -> Result<()> {
+        println!("My namespace received a ping");
+        Ok(())
+    }
 }
 
 impl NamespaceProvider for MyNamespace {
-     fn name() -> String {String::from("my_namespace")}
- 
-     fn register(handler: &mut EventHandler) {
-         handler.on("ping", callback!(Self::ping))
-     }
+    fn name() -> String { String::from("my_namespace") }
+
+    fn register(handler: &mut EventHandler) {
+        handler.on("ping", callback!(Self::ping))
+    }
 }
 
 #[tokio::main]
