@@ -1,12 +1,17 @@
-use self::super::utils::PingEventData;
+use super::utils::PingEventData;
 use crate::prelude::*;
+use crate::protocol::AsyncProtocolStream;
 use crate::tests::utils::start_test_server;
+use std::net::ToSocketAddrs;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use tokio::net::TcpListener;
 use typemap_rev::TypeMapKey;
 
-async fn handle_ping_event(ctx: &Context, e: Event) -> IPCResult<()> {
+async fn handle_ping_event<P: AsyncProtocolStream>(ctx: &Context<P>, e: Event) -> IPCResult<()> {
+    tokio::time::sleep(Duration::from_secs(1)).await;
     let mut ping_data = e.data::<PingEventData>()?;
     ping_data.time = SystemTime::now();
     ping_data.ttl -= 1;
@@ -18,19 +23,36 @@ async fn handle_ping_event(ctx: &Context, e: Event) -> IPCResult<()> {
     Ok(())
 }
 
-fn get_builder_with_ping(address: &str) -> IPCBuilder {
+fn get_builder_with_ping<L: AsyncStreamProtocolListener>(address: L::AddressType) -> IPCBuilder<L> {
     IPCBuilder::new()
         .on("ping", |ctx, e| Box::pin(handle_ping_event(ctx, e)))
+        .timeout(Duration::from_secs(10))
         .address(address)
 }
 
 #[tokio::test]
-async fn it_receives_events() {
-    let builder = get_builder_with_ping("127.0.0.1:8281");
+async fn it_receives_tcp_events() {
+    let socket_address = "127.0.0.1:8281".to_socket_addrs().unwrap().next().unwrap();
+    it_receives_events::<TcpListener>(socket_address).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn it_receives_unix_socket_events() {
+    let socket_path = PathBuf::from("/tmp/test_socket");
+    if socket_path.exists() {
+        std::fs::remove_file(&socket_path).unwrap();
+    }
+    it_receives_events::<tokio::net::UnixListener>(socket_path).await;
+}
+
+async fn it_receives_events<L: 'static + AsyncStreamProtocolListener>(address: L::AddressType) {
+    let builder = get_builder_with_ping::<L>(address.clone());
     let server_running = Arc::new(AtomicBool::new(false));
+
     tokio::spawn({
         let server_running = Arc::clone(&server_running);
-        let builder = get_builder_with_ping("127.0.0.1:8281");
+        let builder = get_builder_with_ping::<L>(address);
         async move {
             server_running.store(true, Ordering::SeqCst);
             builder.build_server().await.unwrap();
@@ -39,8 +61,9 @@ async fn it_receives_events() {
     while !server_running.load(Ordering::Relaxed) {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
-    let ctx = builder.build_client().await.unwrap();
-    let reply = ctx
+    let pool = builder.build_pooled_client(8).await.unwrap();
+    let reply = pool
+        .acquire()
         .emitter
         .emit(
             "ping",
@@ -51,46 +74,49 @@ async fn it_receives_events() {
         )
         .await
         .unwrap()
-        .await_reply(&ctx)
+        .await_reply(&pool.acquire())
         .await
         .unwrap();
     assert_eq!(reply.name(), "pong");
 }
 
-fn get_builder_with_ping_mainspace(address: &str) -> IPCBuilder {
+fn get_builder_with_ping_namespace(address: &str) -> IPCBuilder<TcpListener> {
     IPCBuilder::new()
         .namespace("mainspace")
         .on("ping", callback!(handle_ping_event))
         .build()
-        .address(address)
+        .address(address.to_socket_addrs().unwrap().next().unwrap())
 }
 
 pub struct TestNamespace;
 
 impl TestNamespace {
-    async fn ping(_c: &Context, _e: Event) -> IPCResult<()> {
+    async fn ping<P: AsyncProtocolStream>(_c: &Context<P>, _e: Event) -> IPCResult<()> {
         println!("Ping received");
         Ok(())
     }
 }
 
 impl NamespaceProvider for TestNamespace {
-    fn name() -> String {
-        String::from("Test")
+    fn name() -> &'static str {
+        "Test"
     }
 
-    fn register(handler: &mut EventHandler) {
-        handler.on("ping", callback!(Self::ping))
+    fn register<S: AsyncProtocolStream>(handler: &mut EventHandler<S>) {
+        events!(handler,
+            "ping" => Self::ping,
+            "ping2" => Self::ping
+        );
     }
 }
 
 #[tokio::test]
 async fn it_receives_namespaced_events() {
-    let builder = get_builder_with_ping_mainspace("127.0.0.1:8282");
+    let builder = get_builder_with_ping_namespace("127.0.0.1:8282");
     let server_running = Arc::new(AtomicBool::new(false));
     tokio::spawn({
         let server_running = Arc::clone(&server_running);
-        let builder = get_builder_with_ping_mainspace("127.0.0.1:8282");
+        let builder = get_builder_with_ping_namespace("127.0.0.1:8282");
         async move {
             server_running.store(true, Ordering::SeqCst);
             builder.build_server().await.unwrap();
@@ -128,7 +154,10 @@ impl TypeMapKey for ErrorOccurredKey {
     type Value = Arc<AtomicBool>;
 }
 
-fn get_builder_with_error_handling(error_occurred: Arc<AtomicBool>, address: &str) -> IPCBuilder {
+fn get_builder_with_error_handling(
+    error_occurred: Arc<AtomicBool>,
+    address: &str,
+) -> IPCBuilder<TcpListener> {
     IPCBuilder::new()
         .insert::<ErrorOccurredKey>(error_occurred)
         .on("ping", move |_, _| {
@@ -148,7 +177,7 @@ fn get_builder_with_error_handling(error_occurred: Arc<AtomicBool>, address: &st
                 Ok(())
             }),
         )
-        .address(address)
+        .address(address.to_socket_addrs().unwrap().next().unwrap())
 }
 
 #[tokio::test]
@@ -181,8 +210,8 @@ async fn it_handles_errors() {
 async fn test_error_responses() {
     static ADDRESS: &str = "127.0.0.1:8284";
     start_test_server(ADDRESS).await.unwrap();
-    let ctx = IPCBuilder::new()
-        .address(ADDRESS)
+    let ctx = IPCBuilder::<TcpListener>::new()
+        .address(ADDRESS.to_socket_addrs().unwrap().next().unwrap())
         .build_client()
         .await
         .unwrap();
@@ -202,7 +231,6 @@ async fn test_error_responses() {
         .await
         .unwrap()
         .await_reply(&ctx)
-        .await
-        .unwrap();
-    assert_eq!(reply.name(), "error");
+        .await;
+    assert!(reply.is_err());
 }

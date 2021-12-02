@@ -3,9 +3,10 @@
 //! Client Example:
 //! ```no_run
 //! use bromine::prelude::*;
+//! use tokio::net::TcpListener;
 //!
 //! /// Callback ping function
-//! async fn handle_ping(ctx: &Context, event: Event) -> IPCResult<()> {
+//! async fn handle_ping<S: AsyncProtocolStream>(ctx: &Context<S>, event: Event) -> IPCResult<()> {
 //!     println!("Received ping event.");
 //!     ctx.emitter.emit_response(event.id(), "pong", ()).await?;
 //!
@@ -15,25 +16,29 @@
 //! pub struct MyNamespace;
 //!
 //! impl MyNamespace {
-//!     async fn ping(_ctx: &Context, _event: Event) -> IPCResult<()> {
+//!     async fn ping<S: AsyncProtocolStream>(_ctx: &Context<S>, _event: Event) -> IPCResult<()> {
 //!         println!("My namespace received a ping");
 //!         Ok(())
 //!     }
 //! }
 //!
 //! impl NamespaceProvider for MyNamespace {
-//!     fn name() -> String {String::from("my_namespace")}
+//!     fn name() -> &'static str {"my_namespace"}
 //!
-//!     fn register(handler: &mut EventHandler) {
-//!         handler.on("ping", callback!(Self::ping))
+//!     fn register<S: AsyncProtocolStream>(handler: &mut EventHandler<S>) {
+//!         events!(handler,
+//!             "ping" => Self::ping,
+//!             "ping2" => Self::ping
+//!         );
 //!     }
 //!}
 //!
 //! #[tokio::main]
 //! async fn main() {
 //!     // create the client
-//!     let ctx = IPCBuilder::new()
-//!         .address("127.0.0.1:2020")
+//!     use std::net::ToSocketAddrs;
+//! let ctx = IPCBuilder::<TcpListener>::new()
+//!         .address("127.0.0.1:2020".to_socket_addrs().unwrap().next().unwrap())
 //!         // register callback
 //!         .on("ping", callback!(handle_ping))
 //!         .namespace("mainspace-client")
@@ -55,9 +60,11 @@
 //!
 //! Server Example:
 //! ```no_run
+//! use std::net::ToSocketAddrs;
 //! use typemap_rev::TypeMapKey;
 //! use bromine::IPCBuilder;
 //! use bromine::callback;
+//! use tokio::net::TcpListener;
 //!
 //! struct MyKey;
 //!
@@ -67,8 +74,8 @@
 //!
 //! // create the server
 //!# async fn a() {
-//! IPCBuilder::new()
-//!     .address("127.0.0.1:2020")
+//! IPCBuilder::<TcpListener>::new()
+//!     .address("127.0.0.1:2020".to_socket_addrs().unwrap().next().unwrap())
 //!     // register callback
 //!     .on("ping", callback!(ctx, event, async move {
 //!         println!("Received ping event.");
@@ -102,11 +109,14 @@ mod events;
 pub mod ipc;
 mod macros;
 mod namespaces;
+pub mod protocol;
 
 pub use events::error_event;
 pub use events::event;
 pub use events::event_handler;
+pub use events::payload;
 pub use ipc::builder::IPCBuilder;
+pub use ipc::context;
 pub use macros::*;
 pub use namespaces::builder::NamespaceBuilder;
 pub use namespaces::namespace;
@@ -118,10 +128,13 @@ pub mod prelude {
     pub use crate::event::Event;
     pub use crate::event_handler::EventHandler;
     pub use crate::ipc::context::Context;
+    pub use crate::ipc::context::{PoolGuard, PooledContext};
     pub use crate::ipc::*;
     pub use crate::macros::*;
     pub use crate::namespace::Namespace;
     pub use crate::namespaces::builder::NamespaceBuilder;
     pub use crate::namespaces::provider_trait::*;
+    pub use crate::payload::*;
+    pub use crate::protocol::*;
     pub use crate::*;
 }

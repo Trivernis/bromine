@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fmt::{Display, Formatter};
 
 pub static ERROR_EVENT_NAME: &str = "error";
 
@@ -10,4 +12,12 @@ pub static ERROR_EVENT_NAME: &str = "error";
 pub struct ErrorEventData {
     pub code: u16,
     pub message: String,
+}
+
+impl Error for ErrorEventData {}
+
+impl Display for ErrorEventData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "IPC Code {}: '{}'", self.code, self.message)
+    }
 }

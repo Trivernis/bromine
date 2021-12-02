@@ -1,6 +1,6 @@
 [package]
 name = "bromine"
-version = "0.5.0"
+version = "0.11.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 readme = "README.md"
@@ -8,14 +8,26 @@ license = "Apache-2.0"
 repository = "https://github.com/Trivernis/bromine/"
 description = "A flexible ipc protocol (previously rmp-ipc)"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+bench=false
+
+[[bench]]
+name = "serialization_benchmark"
+harness = false
+
+[[bench]]
+name = "deserialization_benchmark"
+harness = false
 
 [dependencies]
 thiserror = "1.0.30"
 rmp-serde = "0.15.4"
-log = "0.4.14"
+tracing = "0.1.29"
 lazy_static = "1.4.0"
 typemap_rev = "0.1.5"
+byteorder = "1.4.3"
+async-trait = "0.1.51"
+futures = "0.3.17"
 
 [dependencies.serde]
 version = "1.0.130"
@@ -25,6 +37,9 @@ features = ["serde_derive"]
 version = "1.12.0"
 features = ["net", "io-std", "io-util", "sync", "time"]
 
+[dev-dependencies.criterion]
+version = "0.3.5"
+features = ["async_tokio", "html_reports"]
 
 [dev-dependencies.tokio]
 version = "1.12.0"

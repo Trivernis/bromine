@@ -1,36 +1,50 @@
 use crate::error::Result;
+use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event::Event;
+use crate::events::payload::EventSendPayload;
 use crate::ipc::context::Context;
-use serde::Serialize;
+use crate::protocol::AsyncProtocolStream;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
-use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
 
 /// An abstraction over the raw tokio tcp stream
 /// to emit events and share a connection across multiple
 /// contexts.
-#[derive(Clone)]
-pub struct StreamEmitter {
-    stream: Arc<Mutex<OwnedWriteHalf>>,
+pub struct StreamEmitter<S: AsyncProtocolStream> {
+    stream: Arc<Mutex<S::OwnedSplitWriteHalf>>,
 }
 
-impl StreamEmitter {
-    pub fn new(stream: OwnedWriteHalf) -> Self {
+impl<S> Clone for StreamEmitter<S>
+where
+    S: AsyncProtocolStream,
+{
+    fn clone(&self) -> Self {
+        Self {
+            stream: Arc::clone(&self.stream),
+        }
+    }
+}
+
+impl<P> StreamEmitter<P>
+where
+    P: AsyncProtocolStream,
+{
+    pub fn new(stream: P::OwnedSplitWriteHalf) -> Self {
         Self {
             stream: Arc::new(Mutex::new(stream)),
         }
     }
 
-    pub async fn _emit<T: Serialize>(
+    #[tracing::instrument(level = "trace", skip(self, data))]
+    pub async fn _emit<T: EventSendPayload>(
         &self,
         namespace: Option<&str>,
         event: &str,
         data: T,
         res_id: Option<u64>,
     ) -> Result<EmitMetadata> {
-        let data_bytes = rmp_serde::to_vec(&data)?;
-        log::debug!("Emitting event {:?}:{}", namespace, event);
+        let data_bytes = data.to_payload_bytes()?;
 
         let event = if let Some(namespace) = namespace {
             Event::with_namespace(namespace.to_string(), event.to_string(), data_bytes, res_id)
@@ -38,18 +52,20 @@ impl StreamEmitter {
             Event::new(event.to_string(), data_bytes, res_id)
         };
 
-        let event_bytes = event.to_bytes()?;
+        let event_id = event.id();
+
+        let event_bytes = event.into_bytes()?;
         {
-            log::trace!("Writing {} bytes", event_bytes.len());
             let mut stream = self.stream.lock().await;
             (*stream).write_all(&event_bytes[..]).await?;
+            tracing::trace!(bytes_len = event_bytes.len());
         }
 
-        Ok(EmitMetadata::new(event.id()))
+        Ok(EmitMetadata::new(event_id))
     }
 
     /// Emits an event
-    pub async fn emit<S: AsRef<str>, T: Serialize>(
+    pub async fn emit<S: AsRef<str>, T: EventSendPayload>(
         &self,
         event: S,
         data: T,
@@ -58,7 +74,7 @@ impl StreamEmitter {
     }
 
     /// Emits an event to a specific namespace
-    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, T: Serialize>(
+    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload>(
         &self,
         namespace: S1,
         event: S2,
@@ -69,7 +85,7 @@ impl StreamEmitter {
     }
 
     /// Emits a response to an event
-    pub async fn emit_response<S: AsRef<str>, T: Serialize>(
+    pub async fn emit_response<S: AsRef<str>, T: EventSendPayload>(
         &self,
         event_id: u64,
         event: S,
@@ -79,7 +95,7 @@ impl StreamEmitter {
     }
 
     /// Emits a response to an event to a namespace
-    pub async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>, T: Serialize>(
+    pub async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload>(
         &self,
         event_id: u64,
         namespace: S1,
@@ -113,8 +129,13 @@ impl EmitMetadata {
     }
 
     /// Waits for a reply to the given message.
-    pub async fn await_reply(&self, ctx: &Context) -> Result<Event> {
+    #[tracing::instrument(skip(self, ctx), fields(self.message_id))]
+    pub async fn await_reply<P: AsyncProtocolStream>(&self, ctx: &Context<P>) -> Result<Event> {
         let reply = ctx.await_reply(self.message_id).await?;
-        Ok(reply)
+        if reply.name() == ERROR_EVENT_NAME {
+            Err(reply.data::<ErrorEventData>()?.into())
+        } else {
+            Ok(reply)
+        }
     }
 }
