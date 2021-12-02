@@ -1,6 +1,6 @@
 [package]
 name = "bromine"
-version = "0.12.0"
+version = "0.13.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 readme = "README.md"
@@ -21,21 +21,29 @@ harness = false
 
 [dependencies]
 thiserror = "1.0.30"
-rmp-serde = "0.15.4"
 tracing = "0.1.29"
 lazy_static = "1.4.0"
 typemap_rev = "0.1.5"
 byteorder = "1.4.3"
 async-trait = "0.1.51"
 futures = "0.3.17"
+rmp-serde = {version = "0.15.5", optional = true}
 
 [dependencies.serde]
+optional = true
 version = "1.0.130"
-features = ["serde_derive"]
+features = []
 
 [dependencies.tokio]
 version = "1.12.0"
 features = ["net", "io-std", "io-util", "sync", "time"]
+
+[dev-dependencies]
+rmp-serde = "0.15.4"
+
+[dev-dependencies.serde]
+version = "1.0.130"
+features = ["serde_derive"]
 
 [dev-dependencies.criterion]
 version = "0.3.5"
@@ -44,3 +52,7 @@ features = ["async_tokio", "html_reports"]
 [dev-dependencies.tokio]
 version = "1.12.0"
 features = ["macros", "rt-multi-thread"]
+
+[features]
+default = ["messagepack"]
+messagepack = ["serde", "rmp-serde"]
