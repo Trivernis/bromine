@@ -1,7 +1,6 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::events::generate_event_id;
 use crate::events::payload::EventReceivePayload;
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
@@ -14,7 +13,7 @@ pub struct Event {
     data: Vec<u8>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 struct EventHeader {
     id: u64,
     ref_id: Option<u64>,
@@ -94,11 +93,8 @@ impl Event {
         let data_length = total_length - header_length as u64;
         tracing::trace!(total_length, header_length, data_length);
 
-        let header: EventHeader = {
-            let mut header_bytes = vec![0u8; header_length as usize];
-            reader.read_exact(&mut header_bytes).await?;
-            rmp_serde::from_read(&header_bytes[..])?
-        };
+        let header: EventHeader = EventHeader::from_async_read(reader).await?;
+
         let mut data = vec![0u8; data_length as usize];
         reader.read_exact(&mut data).await?;
         let event = Event { header, data };
@@ -109,7 +105,7 @@ impl Event {
     /// Encodes the event into bytes
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn into_bytes(mut self) -> Result<Vec<u8>> {
-        let mut header_bytes = rmp_serde::to_vec(&self.header)?;
+        let mut header_bytes = self.header.into_bytes();
         let header_length = header_bytes.len() as u16;
         let data_length = self.data.len();
         let total_length = header_length as u64 + data_length as u64;
@@ -122,5 +118,63 @@ impl Event {
         buf.append(&mut self.data);
 
         Ok(buf)
+    }
+}
+
+impl EventHeader {
+    /// Serializes the event header into bytes
+    pub fn into_bytes(self) -> Vec<u8> {
+        let mut buf = Vec::new();
+        buf.append(&mut self.id.to_be_bytes().to_vec());
+
+        if let Some(ref_id) = self.ref_id {
+            buf.push(0xFF);
+            buf.append(&mut ref_id.to_be_bytes().to_vec());
+        } else {
+            buf.push(0x00);
+        }
+        if let Some(namespace) = self.namespace {
+            let namespace_len = namespace.len() as u16;
+            buf.append(&mut namespace_len.to_be_bytes().to_vec());
+            buf.append(&mut namespace.into_bytes());
+        } else {
+            buf.append(&mut 0u16.to_be_bytes().to_vec());
+        }
+        let name_len = self.name.len() as u16;
+        buf.append(&mut name_len.to_be_bytes().to_vec());
+        buf.append(&mut self.name.into_bytes());
+
+        buf
+    }
+
+    /// Parses an event header from an async reader
+    pub async fn from_async_read<R: AsyncRead + Unpin>(reader: &mut R) -> Result<Self> {
+        let id = reader.read_u64().await?;
+        let ref_id_exists = reader.read_u8().await?;
+        let ref_id = match ref_id_exists {
+            0x00 => None,
+            0xFF => Some(reader.read_u64().await?),
+            _ => return Err(Error::CorruptedEvent),
+        };
+        let namespace_len = reader.read_u16().await?;
+
+        let namespace = if namespace_len > 0 {
+            let mut namespace_buf = vec![0u8; namespace_len as usize];
+            reader.read_exact(&mut namespace_buf).await?;
+            Some(String::from_utf8(namespace_buf).map_err(|_| Error::CorruptedEvent)?)
+        } else {
+            None
+        };
+        let name_len = reader.read_u16().await?;
+        let mut name_buf = vec![0u8; name_len as usize];
+        reader.read_exact(&mut name_buf).await?;
+        let name = String::from_utf8(name_buf).map_err(|_| Error::CorruptedEvent)?;
+
+        Ok(Self {
+            id,
+            ref_id,
+            namespace,
+            name,
+        })
     }
 }

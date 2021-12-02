@@ -1,16 +1,12 @@
 use crate::events::event_handler::EventHandler;
 use crate::namespace::Namespace;
-use crate::protocol::AsyncProtocolStream;
 
 pub trait NamespaceProvider {
     fn name() -> &'static str;
-    fn register<S: AsyncProtocolStream>(handler: &mut EventHandler<S>);
+    fn register(handler: &mut EventHandler);
 }
 
-impl<S> Namespace<S>
-where
-    S: AsyncProtocolStream,
-{
+impl Namespace {
     pub fn from_provider<N: NamespaceProvider>() -> Self {
         let name = N::name();
         let mut handler = EventHandler::new();

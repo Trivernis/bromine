@@ -9,9 +9,11 @@ pub enum Error {
     #[error(transparent)]
     IoError(#[from] tokio::io::Error),
 
+    #[cfg(feature = "messagepack")]
     #[error(transparent)]
     Decode(#[from] rmp_serde::decode::Error),
 
+    #[cfg(feature = "messagepack")]
     #[error(transparent)]
     Encode(#[from] rmp_serde::encode::Error),
 
@@ -23,6 +25,9 @@ pub enum Error {
 
     #[error("Channel Error: {0}")]
     ReceiveError(#[from] oneshot::error::RecvError),
+
+    #[error("The received event was corrupted")]
+    CorruptedEvent,
 
     #[error("Send Error")]
     SendError,

@@ -1,31 +1,15 @@
 use crate::events::event_handler::EventHandler;
-use crate::protocol::AsyncProtocolStream;
 use std::sync::Arc;
 
-#[derive(Debug)]
-pub struct Namespace<S: AsyncProtocolStream> {
+#[derive(Clone, Debug)]
+pub struct Namespace {
     name: String,
-    pub(crate) handler: Arc<EventHandler<S>>,
+    pub(crate) handler: Arc<EventHandler>,
 }
 
-impl<S> Clone for Namespace<S>
-where
-    S: AsyncProtocolStream,
-{
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            handler: Arc::clone(&self.handler),
-        }
-    }
-}
-
-impl<S> Namespace<S>
-where
-    S: AsyncProtocolStream,
-{
+impl Namespace {
     /// Creates a new namespace with an event handler to register event callbacks on
-    pub fn new<S2: ToString>(name: S2, handler: EventHandler<S>) -> Self {
+    pub fn new<S2: ToString>(name: S2, handler: EventHandler) -> Self {
         Self {
             name: name.to_string(),
             handler: Arc::new(handler),

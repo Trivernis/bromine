@@ -16,25 +16,25 @@ use typemap_rev::TypeMap;
 /// Use the [IPCBuilder](crate::builder::IPCBuilder) to create the client.
 /// Usually one does not need to use the IPCClient object directly.
 #[derive(Clone)]
-pub struct IPCClient<S: AsyncProtocolStream> {
-    pub(crate) handler: EventHandler<S>,
-    pub(crate) namespaces: HashMap<String, Namespace<S>>,
+pub struct IPCClient {
+    pub(crate) handler: EventHandler,
+    pub(crate) namespaces: HashMap<String, Namespace>,
     pub(crate) data: Arc<RwLock<TypeMap>>,
     pub(crate) reply_listeners: ReplyListeners,
     pub(crate) timeout: Duration,
 }
 
-impl<S> IPCClient<S>
-where
-    S: 'static + AsyncProtocolStream,
-{
+impl IPCClient {
     /// Connects to a given address and returns an emitter for events to that address.
     /// Invoked by [IPCBuilder::build_client](crate::builder::IPCBuilder::build_client)
     #[tracing::instrument(skip(self))]
-    pub async fn connect(self, address: S::AddressType) -> Result<Context<S>> {
+    pub async fn connect<S: AsyncProtocolStream + 'static>(
+        self,
+        address: S::AddressType,
+    ) -> Result<Context> {
         let stream = S::protocol_connect(address).await?;
         let (read_half, write_half) = stream.protocol_into_split();
-        let emitter = StreamEmitter::new(write_half);
+        let emitter = StreamEmitter::new::<S>(write_half);
         let (tx, rx) = oneshot::channel();
         let ctx = Context::new(
             StreamEmitter::clone(&emitter),
@@ -49,7 +49,7 @@ where
         let handle = tokio::spawn({
             let ctx = Context::clone(&ctx);
             async move {
-                handle_connection(namespaces, handler, read_half, ctx).await;
+                handle_connection::<S>(namespaces, handler, read_half, ctx).await;
             }
         });
         tokio::spawn(async move {

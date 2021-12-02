@@ -4,21 +4,19 @@ use crate::events::event::Event;
 use crate::events::payload::EventSendPayload;
 use crate::ipc::context::Context;
 use crate::protocol::AsyncProtocolStream;
+use std::ops::DerefMut;
 use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::Mutex;
 
-/// An abstraction over the raw tokio tcp stream
+/// An abstraction over any type that implements the AsyncProtocolStream trait
 /// to emit events and share a connection across multiple
 /// contexts.
-pub struct StreamEmitter<S: AsyncProtocolStream> {
-    stream: Arc<Mutex<S::OwnedSplitWriteHalf>>,
+pub struct StreamEmitter {
+    stream: Arc<Mutex<dyn AsyncWrite + Send + Sync + Unpin + 'static>>,
 }
 
-impl<S> Clone for StreamEmitter<S>
-where
-    S: AsyncProtocolStream,
-{
+impl Clone for StreamEmitter {
     fn clone(&self) -> Self {
         Self {
             stream: Arc::clone(&self.stream),
@@ -26,11 +24,8 @@ where
     }
 }
 
-impl<P> StreamEmitter<P>
-where
-    P: AsyncProtocolStream,
-{
-    pub fn new(stream: P::OwnedSplitWriteHalf) -> Self {
+impl StreamEmitter {
+    pub fn new<P: AsyncProtocolStream + 'static>(stream: P::OwnedSplitWriteHalf) -> Self {
         Self {
             stream: Arc::new(Mutex::new(stream)),
         }
@@ -57,7 +52,7 @@ where
         let event_bytes = event.into_bytes()?;
         {
             let mut stream = self.stream.lock().await;
-            (*stream).write_all(&event_bytes[..]).await?;
+            stream.deref_mut().write_all(&event_bytes[..]).await?;
             tracing::trace!(bytes_len = event_bytes.len());
         }
 
@@ -130,7 +125,7 @@ impl EmitMetadata {
 
     /// Waits for a reply to the given message.
     #[tracing::instrument(skip(self, ctx), fields(self.message_id))]
-    pub async fn await_reply<P: AsyncProtocolStream>(&self, ctx: &Context<P>) -> Result<Event> {
+    pub async fn await_reply(&self, ctx: &Context) -> Result<Event> {
         let reply = ctx.await_reply(self.message_id).await?;
         if reply.name() == ERROR_EVENT_NAME {
             Err(reply.data::<ErrorEventData>()?.into())
