@@ -50,6 +50,7 @@ use typemap_rev::{TypeMap, TypeMapKey};
 ///     .build_server().await.unwrap();
 ///# }
 /// ```
+///
 pub struct IPCBuilder<L: AsyncStreamProtocolListener> {
     handler: EventHandler,
     address: Option<L::AddressType>,
