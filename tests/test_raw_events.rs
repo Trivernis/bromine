@@ -41,5 +41,11 @@ async fn it_passes_events() {
     tokio::task::spawn(async { get_builder(0).build_server().await.unwrap() });
     tokio::time::sleep(Duration::from_millis(100)).await;
     let ctx = get_builder(0).build_client().await.unwrap();
-    ctx.emitter.emit("ping", ()).await.unwrap(); // todo fix reply deadlock
+    ctx.emitter
+        .emit("ping", ())
+        .await
+        .unwrap()
+        .await_reply(&ctx)
+        .await
+        .unwrap();
 }
