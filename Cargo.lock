@@ -43,6 +43,7 @@ dependencies = [
  "async-trait",
  "byteorder",
  "criterion",
+ "crossbeam-utils",
  "futures",
  "lazy_static",
  "rmp-serde",
