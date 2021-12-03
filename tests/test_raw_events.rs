@@ -1,74 +1,83 @@
-mod test_protocol;
+mod call_counter;
+mod protocol;
+mod utils;
 
 use bromine::prelude::*;
-use lazy_static::lazy_static;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-use std::sync::Arc;
+use call_counter::*;
+use protocol::*;
 use std::time::Duration;
-use test_protocol::*;
 use tokio::sync::oneshot::channel;
-use tokio::sync::RwLock;
-use typemap_rev::TypeMapKey;
+use utils::get_free_port;
 
+/// Simple events are passed from the client to the server and responses
+/// are emitted back to the client. Both will have received an event.
 #[tokio::test]
 async fn it_sends_events() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
-    let counters = {
-        let data = ctx.data.read().await;
-        data.get::<CallCounterKey>().unwrap().clone()
-    };
     ctx.emitter.emit("ping", ()).await.unwrap();
 
     // allow the event to be processed
     tokio::time::sleep(Duration::from_millis(10)).await;
+    let counter = get_counter_from_context(&ctx).await;
 
-    assert_eq!(counters.get("ping").await, 1);
-    assert_eq!(counters.get("pong").await, 1);
+    assert_eq!(counter.get("ping").await, 1);
+    assert_eq!(counter.get("pong").await, 1);
 }
 
-struct CallCounterKey;
+/// When awaiting the reply to an event the handler for the event doesn't get called.
+/// Therefore we expect it to have a call count of 0.
+#[tokio::test]
+async fn it_receives_responses() {
+    let port = get_free_port();
+    let ctx = get_client_with_server(port).await;
+    let reply = ctx
+        .emitter
+        .emit("ping", ())
+        .await
+        .unwrap()
+        .await_reply(&ctx)
+        .await
+        .unwrap();
+    let counter = get_counter_from_context(&ctx).await;
 
-impl TypeMapKey for CallCounterKey {
-    type Value = CallCounter;
+    assert_eq!(reply.name(), "pong");
+    assert_eq!(counter.get("ping").await, 1);
+    assert_eq!(counter.get("pong").await, 0);
 }
 
-#[derive(Clone, Default, Debug)]
-struct CallCounter {
-    inner: Arc<RwLock<HashMap<String, AtomicUsize>>>,
+/// When emitting errors from handlers the client should receive an error event
+/// with the error that occurred on the server.
+#[tokio::test]
+async fn it_handles_errors() {
+    let port = get_free_port();
+    let ctx = get_client_with_server(port).await;
+    ctx.emitter.emit("create_error", ()).await.unwrap();
+    // allow the event to be processed
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    let counter = get_counter_from_context(&ctx).await;
+
+    assert_eq!(counter.get("error").await, 1);
 }
 
-impl CallCounter {
-    pub async fn incr(&self, name: &str) {
-        {
-            let calls = self.inner.read().await;
-            if let Some(call) = calls.get(name) {
-                call.fetch_add(1, Ordering::Relaxed);
-                return;
-            }
-        }
-        {
-            let mut calls = self.inner.write().await;
-            calls.insert(name.to_string(), AtomicUsize::new(1));
-        }
-    }
+/// When waiting for the reply to an event and an error occurs, the error should
+/// bypass the handler and be passed as the Err variant on the await reply instead.
+#[tokio::test]
+async fn it_receives_error_responses() {
+    let port = get_free_port();
+    let ctx = get_client_with_server(port).await;
+    let result = ctx
+        .emitter
+        .emit("create_error", ())
+        .await
+        .unwrap()
+        .await_reply(&ctx)
+        .await;
 
-    pub async fn get(&self, name: &str) -> usize {
-        let calls = self.inner.read().await;
+    let counter = get_counter_from_context(&ctx).await;
 
-        calls
-            .get(name)
-            .map(|n| n.load(Ordering::SeqCst))
-            .unwrap_or(0)
-    }
-}
-
-fn get_free_port() -> u8 {
-    lazy_static! {
-        static ref PORT_COUNTER: Arc<AtomicU8> = Arc::new(AtomicU8::new(0));
-    }
-    PORT_COUNTER.fetch_add(1, Ordering::Relaxed)
+    assert!(result.is_err());
+    assert_eq!(counter.get("error").await, 0);
 }
 
 async fn get_client_with_server(port: u8) -> Context {
@@ -99,31 +108,11 @@ async fn get_client_with_server(port: u8) -> Context {
 fn get_builder(port: u8) -> IPCBuilder<TestProtocolListener> {
     IPCBuilder::new()
         .address(port)
-        .on(
-            "ping",
-            callback!(
-                ctx,
-                event,
-                async move { handle_ping_event(ctx, event).await }
-            ),
-        )
         .timeout(Duration::from_millis(100))
-        .on(
-            "pong",
-            callback!(
-                ctx,
-                event,
-                async move { handle_pong_event(ctx, event).await }
-            ),
-        )
-}
-
-async fn increment_counter_for_event(ctx: &Context, event: &Event) {
-    let data = ctx.data.read().await;
-    data.get::<CallCounterKey>()
-        .unwrap()
-        .incr(event.name())
-        .await;
+        .on("ping", callback!(handle_ping_event))
+        .on("pong", callback!(handle_pong_event))
+        .on("create_error", callback!(handle_create_error_event))
+        .on("error", callback!(handle_error_event))
 }
 
 async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
@@ -135,5 +124,18 @@ async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
 
 async fn handle_pong_event(ctx: &Context, event: Event) -> IPCResult<()> {
     increment_counter_for_event(ctx, &event).await;
+
+    Ok(())
+}
+
+async fn handle_create_error_event(ctx: &Context, event: Event) -> IPCResult<()> {
+    increment_counter_for_event(ctx, &event).await;
+
+    Err(IPCError::from("Test Error"))
+}
+
+async fn handle_error_event(ctx: &Context, event: Event) -> IPCResult<()> {
+    increment_counter_for_event(ctx, &event).await;
+
     Ok(())
 }
