@@ -101,13 +101,31 @@
 //! # }
 //! ```
 
-#[cfg(all(feature = "serialize", not(any(feature = "serialize_bincode", feature = "serialize_rmp"))))]
-compile_error!("Feature 'serialize' cannot be used by its own. Choose one of 'serialize_rmp', 'serialize_rmp' instead.");
+#[cfg(all(
+    feature = "serialize",
+    not(any(
+        feature = "serialize_bincode",
+        feature = "serialize_rmp",
+        feature = "serialize_postcard"
+    ))
+))]
+compile_error!("Feature 'serialize' cannot be used by its own. Choose one of 'serialize_rmp', 'serialize_bincode', 'serialize_postcard' instead.");
 
-#[cfg(all(feature = "serialize_rmp", feature = "serialize_bincode"))]
-compile_error!(
-    "Feature 'serialize_rmp' and 'serialize_bincode' cannot be enabled at the same time"
-);
+#[cfg(any(
+    all(
+        feature = "serialize_rmp",
+        any(feature = "serialize_postcard", feature = "serialize_bincode")
+    ),
+    all(
+        feature = "serialize_bincode",
+        any(feature = "serialize_rmp", feature = "serialize_postcard")
+    ),
+    all(
+        feature = "serialize_postcard",
+        any(feature = "serialize_rmp", feature = "serialize_bincode")
+    )
+))]
+compile_error!("You cannot use two serialize_* features at the same time");
 
 pub mod error;
 mod events;

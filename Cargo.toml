@@ -39,6 +39,11 @@ features = []
 version = "1.12.0"
 features = ["net", "io-std", "io-util", "sync", "time"]
 
+[dependencies.postcard]
+version = "0.7.2"
+optional = true
+features = ["alloc"]
+
 [dev-dependencies]
 rmp-serde = "0.15.4"
 crossbeam-utils = "0.8.5"
@@ -60,3 +65,4 @@ default = []
 serialize = ["serde"]
 serialize_rmp = ["serialize", "rmp-serde"]
 serialize_bincode = ["serialize", "bincode"]
+serialize_postcard = ["serialize", "postcard"]
