@@ -40,3 +40,9 @@ jobs:
 
       - name: Run bincode serialization tests
         run: cargo test --verbose --all --features serialize_bincode
+
+      - name: Run postcard serialization tests
+        run: cargo test --verbose --all --features serialize_postcard
+
+      - name: Run json serialization tests
+        run: cargo test --verbose --all --features serialize_json

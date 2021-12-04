@@ -29,6 +29,7 @@ async-trait = "0.1.51"
 futures = "0.3.17"
 rmp-serde = {version = "0.15.5", optional = true}
 bincode = {version = "1.3.3", optional = true}
+serde_json = {version = "1.0.72", optional = true}
 
 [dependencies.serde]
 optional = true
@@ -66,3 +67,4 @@ serialize = ["serde"]
 serialize_rmp = ["serialize", "rmp-serde"]
 serialize_bincode = ["serialize", "bincode"]
 serialize_postcard = ["serialize", "postcard"]
+serialize_json = ["serialize", "serde_json"]

@@ -15,3 +15,9 @@ mod serialize_postcard;
 
 #[cfg(feature = "serialize_postcard")]
 pub use serialize_postcard::*;
+
+#[cfg(feature = "serialize_json")]
+mod serialize_json;
+
+#[cfg(feature = "serialize_json")]
+pub use serialize_json::*;
