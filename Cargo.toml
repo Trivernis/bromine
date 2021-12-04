@@ -28,6 +28,7 @@ byteorder = "1.4.3"
 async-trait = "0.1.51"
 futures = "0.3.17"
 rmp-serde = {version = "0.15.5", optional = true}
+bincode = {version = "1.3.3", optional = true}
 
 [dependencies.serde]
 optional = true
@@ -58,3 +59,4 @@ features = ["macros", "rt-multi-thread"]
 default = []
 serialize = ["serde"]
 serialize_rmp = ["serialize", "rmp-serde"]
+serialize_bincode = ["serialize", "bincode"]

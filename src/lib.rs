@@ -101,6 +101,14 @@
 //! # }
 //! ```
 
+#[cfg(all(feature = "serialize", not(any(feature = "serialize_bincode", feature = "serialize_rmp"))))]
+compile_error!("Feature 'serialize' cannot be used by its own. Choose one of 'serialize_rmp', 'serialize_rmp' instead.");
+
+#[cfg(all(feature = "serialize_rmp", feature = "serialize_bincode"))]
+compile_error!(
+    "Feature 'serialize_rmp' and 'serialize_bincode' cannot be enabled at the same time"
+);
+
 pub mod error;
 mod events;
 pub mod ipc;
