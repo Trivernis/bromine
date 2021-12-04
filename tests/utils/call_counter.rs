@@ -14,10 +14,14 @@ pub async fn get_counter_from_context(ctx: &Context) -> CallCounter {
 
 pub async fn increment_counter_for_event(ctx: &Context, event: &Event) {
     let data = ctx.data.read().await;
-    data.get::<CallCounterKey>()
-        .unwrap()
-        .incr(event.name())
-        .await;
+
+    let key_name = if let Some(namespace) = event.namespace() {
+        format!("{}:{}", namespace, event.name())
+    } else {
+        event.name().to_string()
+    };
+
+    data.get::<CallCounterKey>().unwrap().incr(&key_name).await;
 }
 
 pub struct CallCounterKey;

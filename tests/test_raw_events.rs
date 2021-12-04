@@ -1,13 +1,11 @@
-mod call_counter;
-mod protocol;
 mod utils;
 
+use crate::utils::start_server_and_client;
 use bromine::prelude::*;
-use call_counter::*;
-use protocol::*;
 use std::time::Duration;
-use tokio::sync::oneshot::channel;
+use utils::call_counter::*;
 use utils::get_free_port;
+use utils::protocol::*;
 
 /// Simple events are passed from the client to the server and responses
 /// are emitted back to the client. Both will have received an event.
@@ -23,6 +21,22 @@ async fn it_sends_events() {
 
     assert_eq!(counter.get("ping").await, 1);
     assert_eq!(counter.get("pong").await, 1);
+}
+
+/// Events sent to a specific namespace are handled by the namespace event handler
+#[tokio::test]
+async fn it_sends_namespaced_events() {
+    let port = get_free_port();
+    let ctx = get_client_with_server(port).await;
+    ctx.emitter.emit_to("test", "ping", ()).await.unwrap();
+    ctx.emitter.emit_to("test", "pong", ()).await.unwrap();
+
+    // allow the event to be processed
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    let counter = get_counter_from_context(&ctx).await;
+
+    assert_eq!(counter.get("test:ping").await, 1);
+    assert_eq!(counter.get("test:pong").await, 1);
 }
 
 /// When awaiting the reply to an event the handler for the event doesn't get called.
@@ -81,28 +95,7 @@ async fn it_receives_error_responses() {
 }
 
 async fn get_client_with_server(port: u8) -> Context {
-    let counters = CallCounter::default();
-    let (sender, receiver) = channel::<()>();
-
-    tokio::task::spawn({
-        let counters = counters.clone();
-
-        async move {
-            sender.send(()).unwrap();
-            get_builder(port)
-                .insert::<CallCounterKey>(counters)
-                .build_server()
-                .await
-                .unwrap()
-        }
-    });
-    receiver.await.unwrap();
-
-    get_builder(port)
-        .insert::<CallCounterKey>(counters)
-        .build_client()
-        .await
-        .unwrap()
+    start_server_and_client(move || get_builder(port)).await
 }
 
 fn get_builder(port: u8) -> IPCBuilder<TestProtocolListener> {
@@ -113,6 +106,11 @@ fn get_builder(port: u8) -> IPCBuilder<TestProtocolListener> {
         .on("pong", callback!(handle_pong_event))
         .on("create_error", callback!(handle_create_error_event))
         .on("error", callback!(handle_error_event))
+        .namespace("test")
+        .on("ping", callback!(handle_ping_event))
+        .on("pong", callback!(handle_pong_event))
+        .on("create_error", callback!(handle_create_error_event))
+        .build()
 }
 
 async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
