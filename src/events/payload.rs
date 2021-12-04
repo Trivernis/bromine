@@ -2,6 +2,9 @@ use crate::prelude::IPCResult;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Read;
 
+#[cfg(feature = "serialize")]
+pub use super::payload_serializer::*;
+
 /// Trait to convert event data into sending bytes
 /// It is implemented for all types that implement Serialize
 pub trait EventSendPayload {
@@ -109,36 +112,3 @@ where
         })
     }
 }
-
-#[cfg(feature = "messagepack")]
-mod rmp_impl {
-    use super::{EventReceivePayload, EventSendPayload};
-    use crate::prelude::IPCResult;
-    use serde::de::DeserializeOwned;
-    use serde::Serialize;
-    use std::io::Read;
-
-    impl<T> EventSendPayload for T
-    where
-        T: Serialize,
-    {
-        fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
-            let bytes = rmp_serde::to_vec(&self)?;
-
-            Ok(bytes)
-        }
-    }
-
-    impl<T> EventReceivePayload for T
-    where
-        T: DeserializeOwned,
-    {
-        fn from_payload_bytes<R: Read>(reader: R) -> IPCResult<Self> {
-            let type_data = rmp_serde::from_read(reader)?;
-            Ok(type_data)
-        }
-    }
-}
-
-#[cfg(feature = "messagepack")]
-pub use rmp_impl::*;

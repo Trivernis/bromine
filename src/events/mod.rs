@@ -7,6 +7,10 @@ pub mod event;
 pub mod event_handler;
 pub mod payload;
 
+#[cfg(feature = "serialize")]
+pub mod payload_serializer;
+
+
 /// Generates a new event id
 pub(crate) fn generate_event_id() -> u64 {
     lazy_static::lazy_static! {

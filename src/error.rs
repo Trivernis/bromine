@@ -9,33 +9,29 @@ pub enum Error {
     #[error(transparent)]
     IoError(#[from] tokio::io::Error),
 
-    #[cfg(feature = "messagepack")]
-    #[error(transparent)]
-    Decode(#[from] rmp_serde::decode::Error),
+    #[cfg(feature = "serialize")]
+    #[error("failed to serialize event: {0}")]
+    Serialization(#[from] crate::payload::SerializationError),
 
-    #[cfg(feature = "messagepack")]
-    #[error(transparent)]
-    Encode(#[from] rmp_serde::encode::Error),
-
-    #[error("Build Error: {0}")]
+    #[error("build Error: {0}")]
     BuildError(String),
 
     #[error("{0}")]
     Message(String),
 
-    #[error("Channel Error: {0}")]
+    #[error("channel Error: {0}")]
     ReceiveError(#[from] oneshot::error::RecvError),
 
-    #[error("The received event was corrupted")]
+    #[error("the received event was corrupted")]
     CorruptedEvent,
 
-    #[error("Send Error")]
+    #[error("send Error")]
     SendError,
 
-    #[error("Error response: {0}")]
+    #[error("received error response: {0}")]
     ErrorEvent(#[from] ErrorEventData),
 
-    #[error("Timed out")]
+    #[error("timed out")]
     Timeout,
 }
 

@@ -56,4 +56,5 @@ features = ["macros", "rt-multi-thread"]
 
 [features]
 default = []
-messagepack = ["serde", "rmp-serde"]
+serialize = ["serde"]
+serialize_rmp = ["serialize", "rmp-serde"]

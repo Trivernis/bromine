@@ -88,7 +88,7 @@ async fn handle_pong_event(ctx: &Context, event: Event) -> IPCResult<()> {
     Ok(())
 }
 
-#[cfg(feature = "messagepack")]
+#[cfg(feature = "serialize")]
 mod payload_impl {
     use serde::{Deserialize, Serialize};
 
@@ -99,7 +99,7 @@ mod payload_impl {
     }
 }
 
-#[cfg(not(feature = "messagepack"))]
+#[cfg(not(feature = "serialize"))]
 mod payload_impl {
     use bromine::error::Result;
     use bromine::payload::{EventReceivePayload, EventSendPayload};
