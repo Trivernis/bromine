@@ -33,4 +33,16 @@ jobs:
         run: cargo build --verbose
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --verbose --tests
+
+      - name: Run rmp serialization tests
+        run: cargo test --verbose --all --features serialize_rmp
+
+      - name: Run bincode serialization tests
+        run: cargo test --verbose --all --features serialize_bincode
+
+      - name: Run postcard serialization tests
+        run: cargo test --verbose --all --features serialize_postcard
+
+      - name: Run json serialization tests
+        run: cargo test --verbose --all --features serialize_json

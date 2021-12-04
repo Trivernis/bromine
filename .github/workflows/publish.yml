@@ -23,4 +23,4 @@ jobs:
         run: cargo login "$CRATES_IO_TOKEN"
 
       - name: Publish to crates.io
-        run: cargo publish
+        run: cargo publish --all-features

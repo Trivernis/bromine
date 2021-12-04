@@ -31,7 +31,7 @@ jobs:
         id: extract_branch
 
       - name: Run benchmark
-        run: cargo bench -- --save-baseline ${{steps.extract_branch.outputs.branch}}
+        run: cargo bench --features serialize_rmp -- --save-baseline ${{steps.extract_branch.outputs.branch}}
 
       - name: upload artifact
         uses: actions/upload-artifact@v2
