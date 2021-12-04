@@ -101,9 +101,6 @@
 //! # }
 //! ```
 
-#[cfg(test)]
-mod tests;
-
 pub mod error;
 mod events;
 pub mod ipc;

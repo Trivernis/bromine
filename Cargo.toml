@@ -1,6 +1,6 @@
 [package]
 name = "bromine"
-version = "0.13.0"
+version = "0.14.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 readme = "README.md"
@@ -55,5 +55,5 @@ version = "1.12.0"
 features = ["macros", "rt-multi-thread"]
 
 [features]
-default = ["messagepack"]
+default = []
 messagepack = ["serde", "rmp-serde"]
