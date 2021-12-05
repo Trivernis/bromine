@@ -42,7 +42,7 @@ pub mod payload {
 
     #[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
     pub struct TestPayload {
-        items: Vec<u128>,
+        items: Vec<u64>,
         variant: TestPayloadEnum,
         string: String,
         signed: i32,
@@ -62,7 +62,7 @@ pub mod payload {
 
         maps.insert("Wäüörld".to_string(), -12380);
         let inner_payload = TestPayload {
-            items: vec![0u128, 12452u128, u128::MAX],
+            items: vec![0u64, 12452u64, u64::MAX],
             variant: TestPayloadEnum::Third(12),
             string: String::from("Hello World ſð"),
             signed: -12,
