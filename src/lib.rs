@@ -110,43 +110,7 @@
         feature = "serialize_json"
     ))
 ))]
-compile_error!("Feature 'serialize' cannot be used by its own. Choose one of 'serialize_rmp', 'serialize_bincode', 'serialize_postcard' instead.");
-
-#[cfg(any(
-    all(
-        feature = "serialize_rmp",
-        any(
-            feature = "serialize_postcard",
-            feature = "serialize_bincode",
-            feature = "serialize_json"
-        )
-    ),
-    all(
-        feature = "serialize_bincode",
-        any(
-            feature = "serialize_rmp",
-            feature = "serialize_postcard",
-            feature = "serialize_json"
-        )
-    ),
-    all(
-        feature = "serialize_postcard",
-        any(
-            feature = "serialize_rmp",
-            feature = "serialize_bincode",
-            feature = "serialize_json"
-        )
-    ),
-    all(
-        feature = "serialize_json",
-        any(
-            feature = "serialize_rmp",
-            feature = "serialize_bincode",
-            feature = "serialize_postcard"
-        )
-    )
-))]
-compile_error!("You cannot use two serialize_* features at the same time");
+compile_error!("Feature 'serialize' cannot be used by its own. Choose one of 'serialize_rmp', 'serialize_bincode', 'serialize_postcard', 'serialize_json instead.");
 
 pub mod error;
 mod events;

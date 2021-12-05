@@ -12,6 +12,9 @@ use tokio::sync::oneshot;
 use tokio::sync::RwLock;
 use typemap_rev::TypeMap;
 
+#[cfg(feature = "serialize")]
+use crate::payload::DynamicSerializer;
+
 /// The IPC Client to connect to an IPC Server.
 /// Use the [IPCBuilder](crate::builder::IPCBuilder) to create the client.
 /// Usually one does not need to use the IPCClient object directly.
@@ -22,6 +25,9 @@ pub struct IPCClient {
     pub(crate) data: Arc<RwLock<TypeMap>>,
     pub(crate) reply_listeners: ReplyListeners,
     pub(crate) timeout: Duration,
+
+    #[cfg(feature = "serialize")]
+    pub(crate) default_serializer: DynamicSerializer,
 }
 
 impl IPCClient {
@@ -34,8 +40,20 @@ impl IPCClient {
     ) -> Result<Context> {
         let stream = S::protocol_connect(address).await?;
         let (read_half, write_half) = stream.protocol_into_split();
+
         let emitter = StreamEmitter::new::<S>(write_half);
+
         let (tx, rx) = oneshot::channel();
+        #[cfg(feature = "serialize")]
+        let ctx = Context::new(
+            StreamEmitter::clone(&emitter),
+            self.data,
+            Some(tx),
+            self.reply_listeners,
+            self.timeout,
+            self.default_serializer,
+        );
+        #[cfg(not(feature = "serialize"))]
         let ctx = Context::new(
             StreamEmitter::clone(&emitter),
             self.data,

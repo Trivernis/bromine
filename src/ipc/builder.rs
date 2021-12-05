@@ -7,6 +7,8 @@ use crate::ipc::context::{Context, PooledContext, ReplyListeners};
 use crate::ipc::server::IPCServer;
 use crate::namespaces::builder::NamespaceBuilder;
 use crate::namespaces::namespace::Namespace;
+#[cfg(feature = "serialize")]
+use crate::payload::DynamicSerializer;
 use crate::protocol::AsyncStreamProtocolListener;
 use std::collections::HashMap;
 use std::future::Future;
@@ -57,6 +59,8 @@ pub struct IPCBuilder<L: AsyncStreamProtocolListener> {
     namespaces: HashMap<String, Namespace>,
     data: TypeMap,
     timeout: Duration,
+    #[cfg(feature = "serialize")]
+    default_serializer: DynamicSerializer,
 }
 
 impl<L> IPCBuilder<L>
@@ -67,7 +71,7 @@ where
         let mut handler = EventHandler::new();
         handler.on(ERROR_EVENT_NAME, |_, event| {
             Box::pin(async move {
-                let error_data = event.data::<ErrorEventData>()?;
+                let error_data = event.payload::<ErrorEventData>()?;
                 tracing::warn!(error_data.code);
                 tracing::warn!("error_data.message = '{}'", error_data.message);
 
@@ -80,6 +84,8 @@ where
             namespaces: HashMap::new(),
             data: TypeMap::new(),
             timeout: Duration::from_secs(60),
+            #[cfg(feature = "serialize")]
+            default_serializer: DynamicSerializer::first_available(),
         }
     }
 
@@ -132,6 +138,15 @@ where
         self
     }
 
+    #[cfg(feature = "serialize")]
+    /// Sets the default serializer used for rust types that implement
+    /// serdes Serialize or Deserialize
+    pub fn default_serializer(mut self, serializer: DynamicSerializer) -> Self {
+        self.default_serializer = serializer;
+
+        self
+    }
+
     /// Builds an ipc server
     #[tracing::instrument(skip(self))]
     pub async fn build_server(self) -> Result<()> {
@@ -141,6 +156,9 @@ where
             handler: self.handler,
             data: self.data,
             timeout: self.timeout,
+
+            #[cfg(feature = "serialize")]
+            default_serializer: self.default_serializer,
         };
         server.start::<L>(self.address.unwrap()).await?;
 
@@ -153,12 +171,15 @@ where
         self.validate()?;
         let data = Arc::new(RwLock::new(self.data));
         let reply_listeners = ReplyListeners::default();
+
         let client = IPCClient {
             namespaces: self.namespaces,
             handler: self.handler,
             data,
             reply_listeners,
             timeout: self.timeout,
+            #[cfg(feature = "serialize")]
+            default_serializer: self.default_serializer,
         };
 
         let ctx = client.connect::<L::Stream>(self.address.unwrap()).await?;
@@ -188,6 +209,9 @@ where
                 data: Arc::clone(&data),
                 reply_listeners: Arc::clone(&reply_listeners),
                 timeout: self.timeout.clone(),
+
+                #[cfg(feature = "serialize")]
+                default_serializer: self.default_serializer.clone(),
             };
 
             let ctx = client.connect::<L::Stream>(address.clone()).await?;

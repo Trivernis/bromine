@@ -12,17 +12,14 @@ use utils::protocol::*;
 async fn it_sends_payloads() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
+    let payload = SimplePayload {
+        number: 0,
+        string: String::from("Hello World"),
+    };
+    #[cfg(feature = "serialize")]
+    let payload = ctx.create_serde_payload(payload);
 
-    ctx.emitter
-        .emit(
-            "ping",
-            SimplePayload {
-                number: 0,
-                string: String::from("Hello World"),
-            },
-        )
-        .await
-        .unwrap();
+    ctx.emitter.emit("ping", payload).await.unwrap();
 
     // wait for the event to be handled
     tokio::time::sleep(Duration::from_millis(10)).await;
@@ -37,21 +34,27 @@ async fn it_sends_payloads() {
 async fn it_receives_payloads() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
+    let payload = SimplePayload {
+        number: 0,
+        string: String::from("Hello World"),
+    };
+    #[cfg(feature = "serialize")]
+    let payload = ctx.create_serde_payload(payload);
+
     let reply = ctx
         .emitter
-        .emit(
-            "ping",
-            SimplePayload {
-                number: 0,
-                string: String::from("Hello World"),
-            },
-        )
+        .emit("ping", payload)
         .await
         .unwrap()
         .await_reply(&ctx)
         .await
         .unwrap();
-    let reply_payload = reply.data::<SimplePayload>().unwrap();
+    #[cfg(not(feature = "serialize"))]
+    let reply_payload = reply.payload::<SimplePayload>().unwrap();
+
+    #[cfg(feature = "serialize")]
+    let reply_payload = reply.serde_payload::<SimplePayload>().unwrap();
+
     let counters = get_counter_from_context(&ctx).await;
 
     assert_eq!(counters.get("ping").await, 1);
@@ -73,19 +76,39 @@ fn get_builder(port: u8) -> IPCBuilder<TestProtocolListener> {
 
 async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
     increment_counter_for_event(ctx, &event).await;
-    let payload = event.data::<SimplePayload>()?;
-    ctx.emitter
-        .emit_response(event.id(), "pong", payload)
-        .await?;
+    let payload = get_simple_payload(&event)?;
+    #[cfg(feature = "serialize")]
+    {
+        ctx.emitter
+            .emit_response(event.id(), "pong", ctx.create_serde_payload(payload))
+            .await?;
+    }
+    #[cfg(not(feature = "serialize"))]
+    {
+        ctx.emitter
+            .emit_response(event.id(), "pong", payload)
+            .await?;
+    }
 
     Ok(())
 }
 
 async fn handle_pong_event(ctx: &Context, event: Event) -> IPCResult<()> {
     increment_counter_for_event(ctx, &event).await;
-    let _payload = event.data::<SimplePayload>()?;
+    let _payload = get_simple_payload(&event)?;
 
     Ok(())
+}
+
+fn get_simple_payload(event: &Event) -> IPCResult<SimplePayload> {
+    #[cfg(feature = "serialize")]
+    {
+        event.serde_payload::<SimplePayload>()
+    }
+    #[cfg(not(feature = "serialize"))]
+    {
+        event.payload::<SimplePayload>()
+    }
 }
 
 #[cfg(feature = "serialize")]

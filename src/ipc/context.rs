@@ -3,6 +3,8 @@ use crate::event::Event;
 use crate::ipc::stream_emitter::StreamEmitter;
 use futures::future;
 use futures::future::Either;
+#[cfg(feature = "serialize")]
+use serde::Serialize;
 use std::collections::HashMap;
 use std::mem;
 use std::ops::{Deref, DerefMut};
@@ -12,6 +14,9 @@ use tokio::sync::oneshot::Sender;
 use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio::time::Duration;
 use typemap_rev::TypeMap;
+
+#[cfg(feature = "serialize")]
+use crate::payload::{DynamicSerializer, SerdePayload};
 
 pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>>;
 
@@ -40,6 +45,9 @@ pub struct Context {
     reply_listeners: ReplyListeners,
 
     reply_timeout: Duration,
+
+    #[cfg(feature = "serialize")]
+    default_serializer: DynamicSerializer,
 }
 
 impl Context {
@@ -49,6 +57,7 @@ impl Context {
         stop_sender: Option<Sender<()>>,
         reply_listeners: ReplyListeners,
         reply_timeout: Duration,
+        #[cfg(feature = "serialize")] default_serializer: DynamicSerializer,
     ) -> Self {
         Self {
             emitter,
@@ -56,6 +65,8 @@ impl Context {
             data,
             stop_sender: Arc::new(Mutex::new(stop_sender)),
             reply_timeout,
+            #[cfg(feature = "serialize")]
+            default_serializer,
         }
     }
 
@@ -94,6 +105,11 @@ impl Context {
         }
 
         Ok(())
+    }
+
+    #[cfg(feature = "serialize")]
+    pub fn create_serde_payload<T: Serialize>(&self, data: T) -> SerdePayload<T> {
+        SerdePayload::new(self.default_serializer.clone(), data)
     }
 
     /// Returns the channel for a reply to the given message id
