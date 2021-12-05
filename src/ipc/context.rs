@@ -3,8 +3,6 @@ use crate::event::Event;
 use crate::ipc::stream_emitter::StreamEmitter;
 use futures::future;
 use futures::future::Either;
-#[cfg(feature = "serialize")]
-use serde::Serialize;
 use std::collections::HashMap;
 use std::mem;
 use std::ops::{Deref, DerefMut};
@@ -108,7 +106,7 @@ impl Context {
     }
 
     #[cfg(feature = "serialize")]
-    pub fn create_serde_payload<T: Serialize>(&self, data: T) -> SerdePayload<T> {
+    pub fn create_serde_payload<T>(&self, data: T) -> SerdePayload<T> {
         SerdePayload::new(self.default_serializer.clone(), data)
     }
 

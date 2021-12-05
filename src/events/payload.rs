@@ -122,6 +122,7 @@ impl EventSendPayload for () {
 #[cfg(feature = "serialize")]
 mod serde_payload {
     use super::DynamicSerializer;
+    use crate::context::Context;
     use crate::payload::EventReceivePayload;
     use crate::prelude::{EventSendPayload, IPCResult};
     use byteorder::ReadBytesExt;
@@ -185,6 +186,14 @@ mod serde_payload {
             Ok(Self { serializer, data })
         }
     }
+
+    pub trait IntoSerdePayload: Sized {
+        fn into_serde_payload(self, ctx: &Context) -> SerdePayload<Self> {
+            ctx.create_serde_payload(self)
+        }
+    }
+
+    impl<T> IntoSerdePayload for T where T: Serialize {}
 }
 
 #[cfg(feature = "serialize")]

@@ -17,7 +17,7 @@ async fn it_sends_payloads() {
         string: String::from("Hello World"),
     };
     #[cfg(feature = "serialize")]
-    let payload = ctx.create_serde_payload(payload);
+    let payload = payload.into_serde_payload(&ctx);
 
     ctx.emitter.emit("ping", payload).await.unwrap();
 
@@ -39,7 +39,7 @@ async fn it_receives_payloads() {
         string: String::from("Hello World"),
     };
     #[cfg(feature = "serialize")]
-    let payload = ctx.create_serde_payload(payload);
+    let payload = payload.into_serde_payload(&ctx);
 
     let reply = ctx
         .emitter
@@ -80,7 +80,7 @@ async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
     #[cfg(feature = "serialize")]
     {
         ctx.emitter
-            .emit_response(event.id(), "pong", ctx.create_serde_payload(payload))
+            .emit_response(event.id(), "pong", payload.into_serde_payload(&ctx))
             .await?;
     }
     #[cfg(not(feature = "serialize"))]
