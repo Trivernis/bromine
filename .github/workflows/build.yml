@@ -46,3 +46,6 @@ jobs:
 
       - name: Run json serialization tests
         run: cargo test --verbose --all --features serialize_json
+
+      - name: Run all serialization tests
+        run: cargo test --verbose --all --all-features
