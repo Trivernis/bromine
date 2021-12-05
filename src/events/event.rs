@@ -1,8 +1,17 @@
 use crate::error::{Error, Result};
 use crate::events::generate_event_id;
 use crate::events::payload::EventReceivePayload;
+#[cfg(feature = "serialize")]
+use crate::payload::SerdePayload;
+use crate::prelude::{IPCError, IPCResult};
+use byteorder::{BigEndian, ReadBytesExt};
+#[cfg(feature = "serialize")]
+use serde::de::DeserializeOwned;
 use std::fmt::Debug;
+use std::io::{Cursor, Read};
 use tokio::io::{AsyncRead, AsyncReadExt};
+
+pub const FORMAT_VERSION: [u8; 3] = [0, 9, 0];
 
 /// A container representing an event and underlying binary data.
 /// The data can be decoded into an object representation or read
@@ -62,12 +71,21 @@ impl Event {
         self.header.ref_id.clone()
     }
 
-    /// Decodes the data to the given type
+    /// Decodes the payload to the given type implementing the receive payload trait
     #[tracing::instrument(level = "trace", skip(self))]
-    pub fn data<T: EventReceivePayload>(&self) -> Result<T> {
-        let data = T::from_payload_bytes(&self.data[..])?;
+    pub fn payload<T: EventReceivePayload>(&self) -> Result<T> {
+        let payload = T::from_payload_bytes(&self.data[..])?;
 
-        Ok(data)
+        Ok(payload)
+    }
+
+    #[cfg(feature = "serialize")]
+    /// Decodes the payload to the given type implementing DeserializeOwned
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub fn serde_payload<T: DeserializeOwned>(&self) -> Result<T> {
+        let payload = SerdePayload::<T>::from_payload_bytes(&self.data[..])?;
+
+        Ok(payload.data())
     }
 
     /// Returns a reference of the underlying data
@@ -93,7 +111,10 @@ impl Event {
         let data_length = total_length - header_length as u64;
         tracing::trace!(total_length, header_length, data_length);
 
-        let header: EventHeader = EventHeader::from_async_read(reader).await?;
+        let mut header_bytes = vec![0u8; header_length as usize];
+        reader.read_exact(&mut header_bytes).await?;
+        // additional header fields can be added a the end because when reading they will just be ignored
+        let header: EventHeader = EventHeader::from_read(&mut Cursor::new(header_bytes))?;
 
         let mut data = vec![0u8; data_length as usize];
         reader.read_exact(&mut data).await?;
@@ -124,7 +145,7 @@ impl Event {
 impl EventHeader {
     /// Serializes the event header into bytes
     pub fn into_bytes(self) -> Vec<u8> {
-        let mut buf = Vec::new();
+        let mut buf = FORMAT_VERSION.to_vec();
         buf.append(&mut self.id.to_be_bytes().to_vec());
 
         if let Some(ref_id) = self.ref_id {
@@ -148,27 +169,13 @@ impl EventHeader {
     }
 
     /// Parses an event header from an async reader
-    pub async fn from_async_read<R: AsyncRead + Unpin>(reader: &mut R) -> Result<Self> {
-        let id = reader.read_u64().await?;
-        let ref_id_exists = reader.read_u8().await?;
-        let ref_id = match ref_id_exists {
-            0x00 => None,
-            0xFF => Some(reader.read_u64().await?),
-            _ => return Err(Error::CorruptedEvent),
-        };
-        let namespace_len = reader.read_u16().await?;
-
-        let namespace = if namespace_len > 0 {
-            let mut namespace_buf = vec![0u8; namespace_len as usize];
-            reader.read_exact(&mut namespace_buf).await?;
-            Some(String::from_utf8(namespace_buf).map_err(|_| Error::CorruptedEvent)?)
-        } else {
-            None
-        };
-        let name_len = reader.read_u16().await?;
-        let mut name_buf = vec![0u8; name_len as usize];
-        reader.read_exact(&mut name_buf).await?;
-        let name = String::from_utf8(name_buf).map_err(|_| Error::CorruptedEvent)?;
+    pub fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+        Self::read_version(reader)?;
+        let id = reader.read_u64::<BigEndian>()?;
+        let ref_id = Self::read_ref_id(reader)?;
+        let namespace_len = reader.read_u16::<BigEndian>()?;
+        let namespace = Self::read_namespace(reader, namespace_len)?;
+        let name = Self::read_name(reader)?;
 
         Ok(Self {
             id,
@@ -176,5 +183,53 @@ impl EventHeader {
             namespace,
             name,
         })
+    }
+
+    /// Reads and validates the format version
+    fn read_version<R: Read>(reader: &mut R) -> IPCResult<Vec<u8>> {
+        let mut version = vec![0u8; 3];
+        reader.read_exact(&mut version)?;
+
+        if version[0] != FORMAT_VERSION[0] {
+            return Err(IPCError::unsupported_version_vec(version));
+        }
+
+        Ok(version)
+    }
+
+    /// Reads the reference event id
+    fn read_ref_id<R: Read>(reader: &mut R) -> IPCResult<Option<u64>> {
+        let ref_id_exists = reader.read_u8()?;
+        let ref_id = match ref_id_exists {
+            0x00 => None,
+            0xFF => Some(reader.read_u64::<BigEndian>()?),
+            _ => return Err(Error::CorruptedEvent),
+        };
+
+        Ok(ref_id)
+    }
+
+    /// Reads the name of the event
+    fn read_name<R: Read>(reader: &mut R) -> IPCResult<String> {
+        let name_len = reader.read_u16::<BigEndian>()?;
+
+        Self::read_string(reader, name_len as usize)
+    }
+
+    /// Reads the namespace of the event
+    fn read_namespace<R: Read>(reader: &mut R, namespace_len: u16) -> IPCResult<Option<String>> {
+        let namespace = if namespace_len > 0 {
+            Some(Self::read_string(reader, namespace_len as usize)?)
+        } else {
+            None
+        };
+
+        Ok(namespace)
+    }
+
+    fn read_string<R: Read>(reader: &mut R, length: usize) -> IPCResult<String> {
+        let mut string_buf = vec![0u8; length];
+        reader.read_exact(&mut string_buf)?;
+        String::from_utf8(string_buf).map_err(|_| Error::CorruptedEvent)
     }
 }

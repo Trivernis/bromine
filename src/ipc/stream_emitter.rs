@@ -31,16 +31,14 @@ impl StreamEmitter {
         }
     }
 
-    #[tracing::instrument(level = "trace", skip(self, data))]
-    pub async fn _emit<T: EventSendPayload>(
+    #[tracing::instrument(level = "trace", skip(self, data_bytes))]
+    pub async fn _emit(
         &self,
         namespace: Option<&str>,
         event: &str,
-        data: T,
+        data_bytes: Vec<u8>,
         res_id: Option<u64>,
     ) -> Result<EmitMetadata> {
-        let data_bytes = data.to_payload_bytes()?;
-
         let event = if let Some(namespace) = namespace {
             Event::with_namespace(namespace.to_string(), event.to_string(), data_bytes, res_id)
         } else {
@@ -63,9 +61,10 @@ impl StreamEmitter {
     pub async fn emit<S: AsRef<str>, T: EventSendPayload>(
         &self,
         event: S,
-        data: T,
+        payload: T,
     ) -> Result<EmitMetadata> {
-        self._emit(None, event.as_ref(), data, None).await
+        self._emit(None, event.as_ref(), payload.to_payload_bytes()?, None)
+            .await
     }
 
     /// Emits an event to a specific namespace
@@ -73,10 +72,15 @@ impl StreamEmitter {
         &self,
         namespace: S1,
         event: S2,
-        data: T,
+        payload: T,
     ) -> Result<EmitMetadata> {
-        self._emit(Some(namespace.as_ref()), event.as_ref(), data, None)
-            .await
+        self._emit(
+            Some(namespace.as_ref()),
+            event.as_ref(),
+            payload.to_payload_bytes()?,
+            None,
+        )
+        .await
     }
 
     /// Emits a response to an event
@@ -84,9 +88,15 @@ impl StreamEmitter {
         &self,
         event_id: u64,
         event: S,
-        data: T,
+        payload: T,
     ) -> Result<EmitMetadata> {
-        self._emit(None, event.as_ref(), data, Some(event_id)).await
+        self._emit(
+            None,
+            event.as_ref(),
+            payload.to_payload_bytes()?,
+            Some(event_id),
+        )
+        .await
     }
 
     /// Emits a response to an event to a namespace
@@ -95,12 +105,12 @@ impl StreamEmitter {
         event_id: u64,
         namespace: S1,
         event: S2,
-        data: T,
+        payload: T,
     ) -> Result<EmitMetadata> {
         self._emit(
             Some(namespace.as_ref()),
             event.as_ref(),
-            data,
+            payload.to_payload_bytes()?,
             Some(event_id),
         )
         .await
@@ -128,7 +138,7 @@ impl EmitMetadata {
     pub async fn await_reply(&self, ctx: &Context) -> Result<Event> {
         let reply = ctx.await_reply(self.message_id).await?;
         if reply.name() == ERROR_EVENT_NAME {
-            Err(reply.data::<ErrorEventData>()?.into())
+            Err(reply.payload::<ErrorEventData>()?.into())
         } else {
             Ok(reply)
         }

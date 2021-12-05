@@ -33,6 +33,20 @@ pub enum Error {
 
     #[error("timed out")]
     Timeout,
+
+    #[error("Unsupported API Version {0}")]
+    UnsupportedVersion(String),
+}
+
+impl Error {
+    pub fn unsupported_version_vec(version: Vec<u8>) -> Self {
+        let mut version_string = version
+            .into_iter()
+            .fold(String::new(), |acc, val| format!("{}{}.", acc, val));
+        version_string.pop();
+
+        Self::UnsupportedVersion(version_string)
+    }
 }
 
 impl From<String> for Error {

@@ -112,3 +112,80 @@ where
         })
     }
 }
+
+impl EventSendPayload for () {
+    fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
+        Ok(vec![])
+    }
+}
+
+#[cfg(feature = "serialize")]
+mod serde_payload {
+    use super::DynamicSerializer;
+    use crate::payload::EventReceivePayload;
+    use crate::prelude::{EventSendPayload, IPCResult};
+    use byteorder::ReadBytesExt;
+    use serde::de::DeserializeOwned;
+    use serde::Serialize;
+    use std::io::Read;
+
+    /// A payload representing a payload storing serde serialized data
+    pub struct SerdePayload<T> {
+        data: T,
+        serializer: DynamicSerializer,
+    }
+
+    impl<T> SerdePayload<T> {
+        /// Creates a new serde payload with a specified serializer
+        pub fn new(serializer: DynamicSerializer, data: T) -> Self {
+            Self { serializer, data }
+        }
+
+        pub fn data(self) -> T {
+            self.data
+        }
+    }
+
+    impl<T> Clone for SerdePayload<T>
+    where
+        T: Clone,
+    {
+        fn clone(&self) -> Self {
+            Self {
+                serializer: self.serializer.clone(),
+                data: self.data.clone(),
+            }
+        }
+    }
+
+    impl<T> EventSendPayload for SerdePayload<T>
+    where
+        T: Serialize,
+    {
+        fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
+            let mut buf = Vec::new();
+            let mut data_bytes = self.serializer.serialize(self.data)?;
+            let format_id = self.serializer as u8;
+            buf.push(format_id);
+            buf.append(&mut data_bytes);
+
+            Ok(buf)
+        }
+    }
+
+    impl<T> EventReceivePayload for SerdePayload<T>
+    where
+        T: DeserializeOwned,
+    {
+        fn from_payload_bytes<R: Read>(mut reader: R) -> IPCResult<Self> {
+            let format_id = reader.read_u8()?;
+            let serializer = DynamicSerializer::from_primitive(format_id as usize)?;
+            let data = serializer.deserialize(reader)?;
+
+            Ok(Self { serializer, data })
+        }
+    }
+}
+
+#[cfg(feature = "serialize")]
+pub use serde_payload::*;

@@ -1,29 +1,16 @@
-use crate::payload::{EventReceivePayload, EventSendPayload};
-use crate::prelude::IPCResult;
+use crate::payload::SerializationResult;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::io::Read;
 
-pub type SerializationError = serde_json::Error;
+pub fn serialize<T: Serialize>(data: T) -> SerializationResult<Vec<u8>> {
+    let bytes = serde_json::to_vec(&data)?;
 
-impl<T> EventSendPayload for T
-where
-    T: Serialize,
-{
-    fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
-        let bytes = serde_json::to_vec(&self)?;
-
-        Ok(bytes)
-    }
+    Ok(bytes)
 }
 
-impl<T> EventReceivePayload for T
-where
-    T: DeserializeOwned,
-{
-    fn from_payload_bytes<R: Read>(reader: R) -> IPCResult<Self> {
-        let type_data = serde_json::from_reader(reader)?;
+pub fn deserialize<R: Read, T: DeserializeOwned>(reader: R) -> SerializationResult<T> {
+    let type_data = serde_json::from_reader(reader)?;
 
-        Ok(type_data)
-    }
+    Ok(type_data)
 }
