@@ -146,6 +146,18 @@ mod serde_payload {
         }
     }
 
+    impl<T> Clone for SerdePayload<T>
+    where
+        T: Clone,
+    {
+        fn clone(&self) -> Self {
+            Self {
+                serializer: self.serializer.clone(),
+                data: self.data.clone(),
+            }
+        }
+    }
+
     impl<T> EventSendPayload for SerdePayload<T>
     where
         T: Serialize,
