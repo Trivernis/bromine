@@ -18,7 +18,7 @@ use tokio::net::TcpListener;
 /// Callback ping function
 async fn handle_ping(ctx: &Context, event: Event) -> Result<()> {
     println!("Received ping event.");
-    ctx.emitter.emit_response(event.id(), "pong", ()).await?;
+    ctx.emit("pong", ()).await?;
     Ok(())
 }
 
@@ -32,7 +32,7 @@ async fn main() {
         .build_client().await.unwrap();
 
 // emit an initial event
-    let response = ctx.emitter.emit("ping", ()).await?.await_response(&ctx).await?;
+    let response = ctx.emit("ping", ()).await?.await_response(&ctx).await?;
 }
 ```
 
@@ -80,7 +80,7 @@ async fn main() {
         .build_client().await.unwrap();
 
 // emit an initial event
-    let response = ctx.emitter.emit_to("mainspace-server", "ping", ()).await?
+    let response = ctx.emit_to("mainspace-server", "ping", ()).await?
         .await_response(&ctx).await?;
 }
 ```
