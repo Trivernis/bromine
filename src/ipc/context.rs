@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::event::Event;
-use crate::ipc::stream_emitter::StreamEmitter;
+use crate::ipc::stream_emitter::{EmitMetadata, StreamEmitter};
 use futures::future;
 use futures::future::Either;
 use std::collections::HashMap;
@@ -13,6 +13,7 @@ use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio::time::Duration;
 use typemap_rev::TypeMap;
 
+use crate::payload::IntoPayload;
 #[cfg(feature = "serialize")]
 use crate::payload::{DynamicSerializer, SerdePayload};
 
@@ -26,14 +27,14 @@ pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>
 /// async fn my_callback(ctx: &Context, _event: Event) -> IPCResult<()> {
 ///     // use the emitter on the context object to emit events
 ///     // inside callbacks
-///     ctx.emitter.emit("ping", ()).await?;
+///     ctx.emit("ping", ()).await?;
 ///     Ok(())
 /// }
 /// ```
 #[derive(Clone)]
 pub struct Context {
     /// The event emitter
-    pub emitter: StreamEmitter,
+    emitter: StreamEmitter,
 
     /// Field to store additional context data
     pub data: Arc<RwLock<TypeMap>>,
@@ -44,8 +45,10 @@ pub struct Context {
 
     reply_timeout: Duration,
 
+    ref_id: Option<u64>,
+
     #[cfg(feature = "serialize")]
-    default_serializer: DynamicSerializer,
+    pub default_serializer: DynamicSerializer,
 }
 
 impl Context {
@@ -65,6 +68,42 @@ impl Context {
             reply_timeout,
             #[cfg(feature = "serialize")]
             default_serializer,
+            ref_id: None,
+        }
+    }
+
+    /// Emits an event with a given payload that can be serialized into bytes
+    pub async fn emit<S: AsRef<str>, P: IntoPayload>(
+        &self,
+        name: S,
+        payload: P,
+    ) -> Result<EmitMetadata> {
+        let payload_bytes = payload.into_payload(&self)?;
+
+        if let Some(ref_id) = &self.ref_id {
+            self.emitter
+                .emit_response(*ref_id, name, payload_bytes)
+                .await
+        } else {
+            self.emitter.emit(name, payload_bytes).await
+        }
+    }
+
+    /// Emits an event to a specific namespace
+    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, P: IntoPayload>(
+        &self,
+        namespace: S1,
+        name: S2,
+        payload: P,
+    ) -> Result<EmitMetadata> {
+        let payload_bytes = payload.into_payload(&self)?;
+
+        if let Some(ref_id) = &self.ref_id {
+            self.emitter
+                .emit_response_to(*ref_id, namespace, name, payload_bytes)
+                .await
+        } else {
+            self.emitter.emit_to(namespace, name, payload_bytes).await
         }
     }
 
@@ -114,6 +153,10 @@ impl Context {
     pub(crate) async fn get_reply_sender(&self, ref_id: u64) -> Option<oneshot::Sender<Event>> {
         let mut listeners = self.reply_listeners.lock().await;
         listeners.remove(&ref_id)
+    }
+
+    pub(crate) fn set_ref_id(&mut self, id: Option<u64>) {
+        self.ref_id = id;
     }
 }
 

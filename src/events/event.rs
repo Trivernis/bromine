@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::events::generate_event_id;
-use crate::events::payload::EventReceivePayload;
+use crate::events::payload::FromPayload;
 #[cfg(feature = "serialize")]
 use crate::payload::SerdePayload;
 use crate::prelude::{IPCError, IPCResult};
@@ -73,8 +73,8 @@ impl Event {
 
     /// Decodes the payload to the given type implementing the receive payload trait
     #[tracing::instrument(level = "trace", skip(self))]
-    pub fn payload<T: EventReceivePayload>(&self) -> Result<T> {
-        let payload = T::from_payload_bytes(&self.data[..])?;
+    pub fn payload<T: FromPayload>(&self) -> Result<T> {
+        let payload = T::from_payload(&self.data[..])?;
 
         Ok(payload)
     }
@@ -83,7 +83,7 @@ impl Event {
     /// Decodes the payload to the given type implementing DeserializeOwned
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn serde_payload<T: DeserializeOwned>(&self) -> Result<T> {
-        let payload = SerdePayload::<T>::from_payload_bytes(&self.data[..])?;
+        let payload = SerdePayload::<T>::from_payload(&self.data[..])?;
 
         Ok(payload.data())
     }

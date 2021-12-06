@@ -1,7 +1,6 @@
 use crate::error::Result;
 use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
 use crate::events::event::Event;
-use crate::events::payload::EventSendPayload;
 use crate::ipc::context::Context;
 use crate::protocol::AsyncProtocolStream;
 use std::ops::DerefMut;
@@ -12,16 +11,9 @@ use tokio::sync::Mutex;
 /// An abstraction over any type that implements the AsyncProtocolStream trait
 /// to emit events and share a connection across multiple
 /// contexts.
+#[derive(Clone)]
 pub struct StreamEmitter {
     stream: Arc<Mutex<dyn AsyncWrite + Send + Sync + Unpin + 'static>>,
-}
-
-impl Clone for StreamEmitter {
-    fn clone(&self) -> Self {
-        Self {
-            stream: Arc::clone(&self.stream),
-        }
-    }
 }
 
 impl StreamEmitter {
@@ -32,7 +24,7 @@ impl StreamEmitter {
     }
 
     #[tracing::instrument(level = "trace", skip(self, data_bytes))]
-    pub async fn _emit(
+    async fn _emit(
         &self,
         namespace: Option<&str>,
         event: &str,
@@ -58,59 +50,48 @@ impl StreamEmitter {
     }
 
     /// Emits an event
-    pub async fn emit<S: AsRef<str>, T: EventSendPayload>(
+    pub(crate) async fn emit<S: AsRef<str>>(
         &self,
         event: S,
-        payload: T,
+        payload: Vec<u8>,
     ) -> Result<EmitMetadata> {
-        self._emit(None, event.as_ref(), payload.to_payload_bytes()?, None)
-            .await
+        self._emit(None, event.as_ref(), payload, None).await
     }
 
     /// Emits an event to a specific namespace
-    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload>(
+    pub(crate) async fn emit_to<S1: AsRef<str>, S2: AsRef<str>>(
         &self,
         namespace: S1,
         event: S2,
-        payload: T,
+        payload: Vec<u8>,
     ) -> Result<EmitMetadata> {
-        self._emit(
-            Some(namespace.as_ref()),
-            event.as_ref(),
-            payload.to_payload_bytes()?,
-            None,
-        )
-        .await
+        self._emit(Some(namespace.as_ref()), event.as_ref(), payload, None)
+            .await
     }
 
     /// Emits a response to an event
-    pub async fn emit_response<S: AsRef<str>, T: EventSendPayload>(
+    pub(crate) async fn emit_response<S: AsRef<str>>(
         &self,
         event_id: u64,
         event: S,
-        payload: T,
+        payload: Vec<u8>,
     ) -> Result<EmitMetadata> {
-        self._emit(
-            None,
-            event.as_ref(),
-            payload.to_payload_bytes()?,
-            Some(event_id),
-        )
-        .await
+        self._emit(None, event.as_ref(), payload, Some(event_id))
+            .await
     }
 
     /// Emits a response to an event to a namespace
-    pub async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>, T: EventSendPayload>(
+    pub(crate) async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>>(
         &self,
         event_id: u64,
         namespace: S1,
         event: S2,
-        payload: T,
+        payload: Vec<u8>,
     ) -> Result<EmitMetadata> {
         self._emit(
             Some(namespace.as_ref()),
             event.as_ref(),
-            payload.to_payload_bytes()?,
+            payload,
             Some(event_id),
         )
         .await

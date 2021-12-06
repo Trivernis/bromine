@@ -8,7 +8,7 @@
 //! /// Callback ping function
 //! async fn handle_ping(ctx: &Context, event: Event) -> IPCResult<()> {
 //!     println!("Received ping event.");
-//!     ctx.emitter.emit_response(event.id(), "pong", ()).await?;
+//!     ctx.emit("pong", ()).await?;
 //!
 //!     Ok(())
 //! }
@@ -45,7 +45,7 @@
 //!         // register callback inline
 //!         .on("something", callback!(ctx, event, async move {
 //!             println!("I think the server did something");
-//!             ctx.emitter.emit_response_to(event.id(), "mainspace-server", "ok", ()).await?;
+//!             ctx.emit_to("mainspace-server", "ok", ()).await?;
 //!             Ok(())
 //!         }))
 //!         .build()
@@ -53,7 +53,7 @@
 //!         .build_client().await.unwrap();
 //!
 //!     // emit an initial event
-//!     let response = ctx.emitter.emit("ping", ()).await.unwrap().await_reply(&ctx).await.unwrap();
+//!     let response = ctx.emit("ping", ()).await.unwrap().await_reply(&ctx).await.unwrap();
 //!     assert_eq!(response.name(), "pong");
 //! }
 //! ```
@@ -79,7 +79,7 @@
 //!     // register callback
 //!     .on("ping", callback!(ctx, event, async move {
 //!         println!("Received ping event.");
-//!         ctx.emitter.emit_response(event.id(), "pong", ()).await?;
+//!         ctx.emit("pong", ()).await?;
 //!         Ok(())
 //!     }))
 //!     .namespace("mainspace-server")
@@ -91,7 +91,7 @@
 //!             let mut my_key = data.get_mut::<MyKey>().unwrap();
 //!             *my_key += 1;
 //!         }
-//!         ctx.emitter.emit_response_to(event.id(), "mainspace-client", "something", ()).await?;
+//!         ctx.emit_to("mainspace-client", "something", ()).await?;
 //!         Ok(())
 //!     }))
 //!     .build()

@@ -17,9 +17,7 @@ async fn it_sends_payloads() {
         string: String::from("Hello World"),
     };
     #[cfg(feature = "serialize")]
-    let payload = payload.into_serde_payload(&ctx);
-
-    ctx.emitter.emit("ping", payload).await.unwrap();
+    ctx.emit("ping", payload).await.unwrap();
 
     // wait for the event to be handled
     tokio::time::sleep(Duration::from_millis(10)).await;
@@ -39,10 +37,7 @@ async fn it_receives_payloads() {
         string: String::from("Hello World"),
     };
     #[cfg(feature = "serialize")]
-    let payload = payload.into_serde_payload(&ctx);
-
     let reply = ctx
-        .emitter
         .emit("ping", payload)
         .await
         .unwrap()
@@ -79,9 +74,7 @@ async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
     let payload = get_simple_payload(&event)?;
     #[cfg(feature = "serialize")]
     {
-        ctx.emitter
-            .emit_response(event.id(), "pong", payload.into_serde_payload(&ctx))
-            .await?;
+        ctx.emit("pong", payload).await?;
     }
     #[cfg(not(feature = "serialize"))]
     {
@@ -125,7 +118,7 @@ mod payload_impl {
 #[cfg(not(feature = "serialize"))]
 mod payload_impl {
     use bromine::error::Result;
-    use bromine::payload::{EventReceivePayload, EventSendPayload};
+    use bromine::payload::{FromPayload, IntoPayload};
     use bromine::prelude::IPCResult;
     use byteorder::{BigEndian, ReadBytesExt};
     use std::io::Read;
@@ -135,7 +128,7 @@ mod payload_impl {
         pub number: u32,
     }
 
-    impl EventSendPayload for SimplePayload {
+    impl IntoPayload for SimplePayload {
         fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
             let mut buf = Vec::new();
             let string_length = self.string.len() as u16;
@@ -150,8 +143,8 @@ mod payload_impl {
         }
     }
 
-    impl EventReceivePayload for SimplePayload {
-        fn from_payload_bytes<R: Read>(mut reader: R) -> Result<Self> {
+    impl FromPayload for SimplePayload {
+        fn from_payload<R: Read>(mut reader: R) -> Result<Self> {
             let string_length = reader.read_u16::<BigEndian>()?;
             let mut string_buf = vec![0u8; string_length as usize];
             reader.read_exact(&mut string_buf)?;

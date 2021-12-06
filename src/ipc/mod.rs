@@ -52,15 +52,14 @@ async fn handle_connection<S: 'static + AsyncProtocolStream>(
 }
 
 /// Handles a single event in a different tokio context
-fn handle_event(ctx: Context, handler: Arc<EventHandler>, event: Event) {
+fn handle_event(mut ctx: Context, handler: Arc<EventHandler>, event: Event) {
+    ctx.set_ref_id(Some(event.id()));
+
     tokio::spawn(async move {
-        let id = event.id();
         if let Err(e) = handler.handle_event(&ctx, event).await {
             // emit an error event
             if let Err(e) = ctx
-                .emitter
-                .emit_response(
-                    id,
+                .emit(
                     ERROR_EVENT_NAME,
                     ErrorEventData {
                         message: format!("{:?}", e),
