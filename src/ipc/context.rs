@@ -160,6 +160,7 @@ impl Context {
     }
 }
 
+#[derive(Clone)]
 pub struct PooledContext {
     contexts: Vec<PoolGuard<Context>>,
 }
