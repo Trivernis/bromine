@@ -12,14 +12,12 @@ use utils::protocol::*;
 async fn it_sends_payloads() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
+
     let payload = SimplePayload {
         number: 0,
         string: String::from("Hello World"),
     };
-    #[cfg(feature = "serialize")]
-    let payload = ctx.create_serde_payload(payload);
-
-    ctx.emitter.emit("ping", payload).await.unwrap();
+    ctx.emit("ping", payload).await.unwrap();
 
     // wait for the event to be handled
     tokio::time::sleep(Duration::from_millis(10)).await;
@@ -38,22 +36,14 @@ async fn it_receives_payloads() {
         number: 0,
         string: String::from("Hello World"),
     };
-    #[cfg(feature = "serialize")]
-    let payload = ctx.create_serde_payload(payload);
-
     let reply = ctx
-        .emitter
         .emit("ping", payload)
         .await
         .unwrap()
         .await_reply(&ctx)
         .await
         .unwrap();
-    #[cfg(not(feature = "serialize"))]
     let reply_payload = reply.payload::<SimplePayload>().unwrap();
-
-    #[cfg(feature = "serialize")]
-    let reply_payload = reply.serde_payload::<SimplePayload>().unwrap();
 
     let counters = get_counter_from_context(&ctx).await;
 
@@ -76,39 +66,17 @@ fn get_builder(port: u8) -> IPCBuilder<TestProtocolListener> {
 
 async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
     increment_counter_for_event(ctx, &event).await;
-    let payload = get_simple_payload(&event)?;
-    #[cfg(feature = "serialize")]
-    {
-        ctx.emitter
-            .emit_response(event.id(), "pong", ctx.create_serde_payload(payload))
-            .await?;
-    }
-    #[cfg(not(feature = "serialize"))]
-    {
-        ctx.emitter
-            .emit_response(event.id(), "pong", payload)
-            .await?;
-    }
+    let payload = event.payload::<SimplePayload>()?;
+    ctx.emit("pong", payload).await?;
 
     Ok(())
 }
 
 async fn handle_pong_event(ctx: &Context, event: Event) -> IPCResult<()> {
     increment_counter_for_event(ctx, &event).await;
-    let _payload = get_simple_payload(&event)?;
+    let _payload = event.payload::<SimplePayload>()?;
 
     Ok(())
-}
-
-fn get_simple_payload(event: &Event) -> IPCResult<SimplePayload> {
-    #[cfg(feature = "serialize")]
-    {
-        event.serde_payload::<SimplePayload>()
-    }
-    #[cfg(not(feature = "serialize"))]
-    {
-        event.payload::<SimplePayload>()
-    }
 }
 
 #[cfg(feature = "serialize")]
@@ -124,8 +92,9 @@ mod payload_impl {
 
 #[cfg(not(feature = "serialize"))]
 mod payload_impl {
+    use bromine::context::Context;
     use bromine::error::Result;
-    use bromine::payload::{EventReceivePayload, EventSendPayload};
+    use bromine::payload::{FromPayload, IntoPayload};
     use bromine::prelude::IPCResult;
     use byteorder::{BigEndian, ReadBytesExt};
     use std::io::Read;
@@ -135,8 +104,8 @@ mod payload_impl {
         pub number: u32,
     }
 
-    impl EventSendPayload for SimplePayload {
-        fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
+    impl IntoPayload for SimplePayload {
+        fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
             let mut buf = Vec::new();
             let string_length = self.string.len() as u16;
             let string_length_bytes = string_length.to_be_bytes();
@@ -150,8 +119,8 @@ mod payload_impl {
         }
     }
 
-    impl EventReceivePayload for SimplePayload {
-        fn from_payload_bytes<R: Read>(mut reader: R) -> Result<Self> {
+    impl FromPayload for SimplePayload {
+        fn from_payload<R: Read>(mut reader: R) -> Result<Self> {
             let string_length = reader.read_u16::<BigEndian>()?;
             let mut string_buf = vec![0u8; string_length as usize];
             reader.read_exact(&mut string_buf)?;

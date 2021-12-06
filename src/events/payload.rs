@@ -5,16 +5,26 @@ use std::io::Read;
 #[cfg(feature = "serialize")]
 pub use super::payload_serializer::*;
 
+/// Trait that serializes a type into bytes and can fail
+pub trait TryIntoBytes {
+    fn try_into_bytes(self) -> IPCResult<Vec<u8>>;
+}
+
+/// Trait that serializes a type into bytes and never fails
+pub trait IntoBytes {
+    fn into_bytes(self) -> Vec<u8>;
+}
+
 /// Trait to convert event data into sending bytes
 /// It is implemented for all types that implement Serialize
-pub trait EventSendPayload {
-    fn to_payload_bytes(self) -> IPCResult<Vec<u8>>;
+pub trait IntoPayload {
+    fn into_payload(self, ctx: &Context) -> IPCResult<Vec<u8>>;
 }
 
 /// Trait to get the event data from receiving bytes.
 /// It is implemented for all types that are DeserializeOwned
-pub trait EventReceivePayload: Sized {
-    fn from_payload_bytes<R: Read>(reader: R) -> IPCResult<Self>;
+pub trait FromPayload: Sized {
+    fn from_payload<R: Read>(reader: R) -> IPCResult<Self>;
 }
 
 /// A payload wrapper type for sending bytes directly without
@@ -35,14 +45,14 @@ impl BytePayload {
     }
 }
 
-impl EventSendPayload for BytePayload {
-    fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
+impl IntoPayload for BytePayload {
+    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
         Ok(self.bytes)
     }
 }
 
-impl EventReceivePayload for BytePayload {
-    fn from_payload_bytes<R: Read>(mut reader: R) -> IPCResult<Self> {
+impl FromPayload for BytePayload {
+    fn from_payload<R: Read>(mut reader: R) -> IPCResult<Self> {
         let mut buf = Vec::new();
         reader.read_to_end(&mut buf)?;
 
@@ -70,14 +80,10 @@ impl<P1, P2> TandemPayload<P1, P2> {
     }
 }
 
-impl<P1, P2> EventSendPayload for TandemPayload<P1, P2>
-where
-    P1: EventSendPayload,
-    P2: EventSendPayload,
-{
-    fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
-        let mut p1_bytes = self.load1.to_payload_bytes()?;
-        let mut p2_bytes = self.load2.to_payload_bytes()?;
+impl<P1: IntoPayload, P2: IntoPayload> IntoPayload for TandemPayload<P1, P2> {
+    fn into_payload(self, ctx: &Context) -> IPCResult<Vec<u8>> {
+        let mut p1_bytes = self.load1.into_payload(&ctx)?;
+        let mut p2_bytes = self.load2.into_payload(&ctx)?;
 
         let mut p1_length_bytes = (p1_bytes.len() as u64).to_be_bytes().to_vec();
         let mut p2_length_bytes = (p2_bytes.len() as u64).to_be_bytes().to_vec();
@@ -92,12 +98,8 @@ where
     }
 }
 
-impl<P1, P2> EventReceivePayload for TandemPayload<P1, P2>
-where
-    P1: EventReceivePayload,
-    P2: EventReceivePayload,
-{
-    fn from_payload_bytes<R: Read>(mut reader: R) -> IPCResult<Self> {
+impl<P1: FromPayload, P2: FromPayload> FromPayload for TandemPayload<P1, P2> {
+    fn from_payload<R: Read>(mut reader: R) -> IPCResult<Self> {
         let p1_length = reader.read_u64::<BigEndian>()?;
         let mut load1_bytes = vec![0u8; p1_length as usize];
         reader.read_exact(&mut load1_bytes)?;
@@ -107,14 +109,15 @@ where
         reader.read_exact(&mut load2_bytes)?;
 
         Ok(Self {
-            load1: P1::from_payload_bytes(load1_bytes.as_slice())?,
-            load2: P2::from_payload_bytes(load2_bytes.as_slice())?,
+            load1: P1::from_payload(load1_bytes.as_slice())?,
+            load2: P2::from_payload(load2_bytes.as_slice())?,
         })
     }
 }
 
-impl EventSendPayload for () {
-    fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
+#[cfg(not(feature = "serialize"))]
+impl IntoPayload for () {
+    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
         Ok(vec![])
     }
 }
@@ -122,8 +125,9 @@ impl EventSendPayload for () {
 #[cfg(feature = "serialize")]
 mod serde_payload {
     use super::DynamicSerializer;
-    use crate::payload::EventReceivePayload;
-    use crate::prelude::{EventSendPayload, IPCResult};
+    use crate::context::Context;
+    use crate::payload::{FromPayload, TryIntoBytes};
+    use crate::prelude::{IPCResult, IntoPayload};
     use byteorder::ReadBytesExt;
     use serde::de::DeserializeOwned;
     use serde::Serialize;
@@ -146,10 +150,7 @@ mod serde_payload {
         }
     }
 
-    impl<T> Clone for SerdePayload<T>
-    where
-        T: Clone,
-    {
+    impl<T: Clone> Clone for SerdePayload<T> {
         fn clone(&self) -> Self {
             Self {
                 serializer: self.serializer.clone(),
@@ -158,11 +159,8 @@ mod serde_payload {
         }
     }
 
-    impl<T> EventSendPayload for SerdePayload<T>
-    where
-        T: Serialize,
-    {
-        fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
+    impl<T: Serialize> TryIntoBytes for SerdePayload<T> {
+        fn try_into_bytes(self) -> IPCResult<Vec<u8>> {
             let mut buf = Vec::new();
             let mut data_bytes = self.serializer.serialize(self.data)?;
             let format_id = self.serializer as u8;
@@ -173,11 +171,14 @@ mod serde_payload {
         }
     }
 
-    impl<T> EventReceivePayload for SerdePayload<T>
-    where
-        T: DeserializeOwned,
-    {
-        fn from_payload_bytes<R: Read>(mut reader: R) -> IPCResult<Self> {
+    impl<T: Serialize> IntoPayload for SerdePayload<T> {
+        fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
+            self.try_into_bytes()
+        }
+    }
+
+    impl<T: DeserializeOwned> FromPayload for SerdePayload<T> {
+        fn from_payload<R: Read>(mut reader: R) -> IPCResult<Self> {
             let format_id = reader.read_u8()?;
             let serializer = DynamicSerializer::from_primitive(format_id as usize)?;
             let data = serializer.deserialize(reader)?;
@@ -185,7 +186,22 @@ mod serde_payload {
             Ok(Self { serializer, data })
         }
     }
+
+    impl<T: Serialize> IntoPayload for T {
+        fn into_payload(self, ctx: &Context) -> IPCResult<Vec<u8>> {
+            ctx.create_serde_payload(self).into_payload(&ctx)
+        }
+    }
+
+    impl<T: DeserializeOwned> FromPayload for T {
+        fn from_payload<R: Read>(reader: R) -> IPCResult<Self> {
+            let serde_payload = SerdePayload::<Self>::from_payload(reader)?;
+
+            Ok(serde_payload.data)
+        }
+    }
 }
 
+use crate::context::Context;
 #[cfg(feature = "serialize")]
 pub use serde_payload::*;

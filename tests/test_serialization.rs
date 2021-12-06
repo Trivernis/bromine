@@ -1,3 +1,4 @@
+#[cfg(feature = "serialize")]
 use bromine::prelude::*;
 
 #[cfg(feature = "serialize_rmp")]
@@ -27,8 +28,8 @@ fn it_serializes_json() {
 #[cfg(feature = "serialize")]
 fn test_serialization(serializer: DynamicSerializer) {
     let test_payload = get_test_payload(serializer);
-    let payload_bytes = test_payload.clone().to_payload_bytes().unwrap();
-    let payload = TestSerdePayload::from_payload_bytes(&payload_bytes[..]).unwrap();
+    let payload_bytes = test_payload.clone().try_into_bytes().unwrap();
+    let payload = TestSerdePayload::from_payload(&payload_bytes[..]).unwrap();
     assert_eq!(payload.data(), test_payload.data())
 }
 

@@ -84,7 +84,7 @@ If no namespace for the event namespace is registered or no handler is registere
 the event name, the event will be ignored.
 
 
-### Receiving answers to emitted events
+### Receiving replies to emitted events
 
 When emitting an event to a peer, the emitter can wait for an answer to that event.
 This is achieved by emitting events as a response to a specific event id.
@@ -92,3 +92,5 @@ When an event with a reference event id (ref_id) is received, first the registry
 searched for handlers waiting for a response (by trying to receive from a channel).
 If a handler can be found, the event is passed to the handler waiting for the response.
 Otherwise, the event will be processed as a regular event.
+Events passed from an event handler are always passed as replies to the event that
+called that handler.

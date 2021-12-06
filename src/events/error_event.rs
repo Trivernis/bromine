@@ -1,5 +1,6 @@
+use crate::context::Context;
 use crate::error::Result;
-use crate::payload::{EventReceivePayload, EventSendPayload};
+use crate::payload::{FromPayload, IntoPayload};
 use crate::prelude::{IPCError, IPCResult};
 use byteorder::{BigEndian, ReadBytesExt};
 use std::error::Error;
@@ -26,8 +27,8 @@ impl Display for ErrorEventData {
     }
 }
 
-impl EventSendPayload for ErrorEventData {
-    fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
+impl IntoPayload for ErrorEventData {
+    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
         let mut buf = Vec::new();
         buf.append(&mut self.code.to_be_bytes().to_vec());
         let message_len = self.message.len() as u32;
@@ -38,8 +39,8 @@ impl EventSendPayload for ErrorEventData {
     }
 }
 
-impl EventReceivePayload for ErrorEventData {
-    fn from_payload_bytes<R: Read>(mut reader: R) -> Result<Self> {
+impl FromPayload for ErrorEventData {
+    fn from_payload<R: Read>(mut reader: R) -> Result<Self> {
         let code = reader.read_u16::<BigEndian>()?;
         let message_len = reader.read_u32::<BigEndian>()?;
         let mut message_buf = vec![0u8; message_len as usize];

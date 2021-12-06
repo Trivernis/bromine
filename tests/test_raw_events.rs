@@ -13,7 +13,7 @@ use utils::protocol::*;
 async fn it_sends_events() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
-    ctx.emitter.emit("ping", EmptyPayload).await.unwrap();
+    ctx.emit("ping", EmptyPayload).await.unwrap();
 
     // allow the event to be processed
     tokio::time::sleep(Duration::from_millis(10)).await;
@@ -28,14 +28,8 @@ async fn it_sends_events() {
 async fn it_sends_namespaced_events() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
-    ctx.emitter
-        .emit_to("test", "ping", EmptyPayload)
-        .await
-        .unwrap();
-    ctx.emitter
-        .emit_to("test", "pong", EmptyPayload)
-        .await
-        .unwrap();
+    ctx.emit_to("test", "ping", EmptyPayload).await.unwrap();
+    ctx.emit_to("test", "pong", EmptyPayload).await.unwrap();
 
     // allow the event to be processed
     tokio::time::sleep(Duration::from_millis(10)).await;
@@ -52,7 +46,6 @@ async fn it_receives_responses() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
     let reply = ctx
-        .emitter
         .emit("ping", EmptyPayload)
         .await
         .unwrap()
@@ -72,10 +65,7 @@ async fn it_receives_responses() {
 async fn it_handles_errors() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
-    ctx.emitter
-        .emit("create_error", EmptyPayload)
-        .await
-        .unwrap();
+    ctx.emit("create_error", EmptyPayload).await.unwrap();
     // allow the event to be processed
     tokio::time::sleep(Duration::from_millis(10)).await;
     let counter = get_counter_from_context(&ctx).await;
@@ -90,7 +80,6 @@ async fn it_receives_error_responses() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
     let result = ctx
-        .emitter
         .emit("create_error", EmptyPayload)
         .await
         .unwrap()
@@ -124,9 +113,7 @@ fn get_builder(port: u8) -> IPCBuilder<TestProtocolListener> {
 
 async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
     increment_counter_for_event(ctx, &event).await;
-    ctx.emitter
-        .emit_response(event.id(), "pong", EmptyPayload)
-        .await?;
+    ctx.emit("pong", EmptyPayload).await?;
 
     Ok(())
 }
@@ -151,8 +138,8 @@ async fn handle_error_event(ctx: &Context, event: Event) -> IPCResult<()> {
 
 pub struct EmptyPayload;
 
-impl EventSendPayload for EmptyPayload {
-    fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
+impl IntoPayload for EmptyPayload {
+    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
         Ok(vec![])
     }
 }
