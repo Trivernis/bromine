@@ -192,6 +192,14 @@ mod serde_payload {
             ctx.create_serde_payload(self).into_payload(&ctx)
         }
     }
+
+    impl<T: DeserializeOwned> FromPayload for T {
+        fn from_payload<R: Read>(reader: R) -> IPCResult<Self> {
+            let serde_payload = SerdePayload::<Self>::from_payload(reader)?;
+
+            Ok(serde_payload.data)
+        }
+    }
 }
 
 use crate::context::Context;

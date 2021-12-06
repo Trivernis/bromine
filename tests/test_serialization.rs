@@ -1,3 +1,4 @@
+#[cfg(feature = "serialize")]
 use bromine::prelude::*;
 
 #[cfg(feature = "serialize_rmp")]

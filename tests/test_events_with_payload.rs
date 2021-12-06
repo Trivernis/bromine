@@ -12,11 +12,11 @@ use utils::protocol::*;
 async fn it_sends_payloads() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
+
     let payload = SimplePayload {
         number: 0,
         string: String::from("Hello World"),
     };
-    #[cfg(feature = "serialize")]
     ctx.emit("ping", payload).await.unwrap();
 
     // wait for the event to be handled
@@ -36,7 +36,6 @@ async fn it_receives_payloads() {
         number: 0,
         string: String::from("Hello World"),
     };
-    #[cfg(feature = "serialize")]
     let reply = ctx
         .emit("ping", payload)
         .await
@@ -44,11 +43,7 @@ async fn it_receives_payloads() {
         .await_reply(&ctx)
         .await
         .unwrap();
-    #[cfg(not(feature = "serialize"))]
     let reply_payload = reply.payload::<SimplePayload>().unwrap();
-
-    #[cfg(feature = "serialize")]
-    let reply_payload = reply.serde_payload::<SimplePayload>().unwrap();
 
     let counters = get_counter_from_context(&ctx).await;
 
@@ -71,37 +66,17 @@ fn get_builder(port: u8) -> IPCBuilder<TestProtocolListener> {
 
 async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
     increment_counter_for_event(ctx, &event).await;
-    let payload = get_simple_payload(&event)?;
-    #[cfg(feature = "serialize")]
-    {
-        ctx.emit("pong", payload).await?;
-    }
-    #[cfg(not(feature = "serialize"))]
-    {
-        ctx.emitter
-            .emit_response(event.id(), "pong", payload)
-            .await?;
-    }
+    let payload = event.payload::<SimplePayload>()?;
+    ctx.emit("pong", payload).await?;
 
     Ok(())
 }
 
 async fn handle_pong_event(ctx: &Context, event: Event) -> IPCResult<()> {
     increment_counter_for_event(ctx, &event).await;
-    let _payload = get_simple_payload(&event)?;
+    let _payload = event.payload::<SimplePayload>()?;
 
     Ok(())
-}
-
-fn get_simple_payload(event: &Event) -> IPCResult<SimplePayload> {
-    #[cfg(feature = "serialize")]
-    {
-        event.serde_payload::<SimplePayload>()
-    }
-    #[cfg(not(feature = "serialize"))]
-    {
-        event.payload::<SimplePayload>()
-    }
 }
 
 #[cfg(feature = "serialize")]
@@ -117,6 +92,7 @@ mod payload_impl {
 
 #[cfg(not(feature = "serialize"))]
 mod payload_impl {
+    use bromine::context::Context;
     use bromine::error::Result;
     use bromine::payload::{FromPayload, IntoPayload};
     use bromine::prelude::IPCResult;
@@ -129,7 +105,7 @@ mod payload_impl {
     }
 
     impl IntoPayload for SimplePayload {
-        fn to_payload_bytes(self) -> IPCResult<Vec<u8>> {
+        fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
             let mut buf = Vec::new();
             let string_length = self.string.len() as u16;
             let string_length_bytes = string_length.to_be_bytes();
