@@ -35,23 +35,27 @@ pub struct BytePayload {
 }
 
 impl BytePayload {
+    #[inline]
     pub fn new(bytes: Vec<u8>) -> Self {
         Self { bytes }
     }
 
     /// Returns the bytes of the payload
+    #[inline]
     pub fn into_inner(self) -> Vec<u8> {
         self.bytes
     }
 }
 
 impl IntoPayload for BytePayload {
+    #[inline]
     fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
         Ok(self.bytes)
     }
 }
 
 impl FromPayload for BytePayload {
+    #[inline]
     fn from_payload<R: Read>(mut reader: R) -> IPCResult<Self> {
         let mut buf = Vec::new();
         reader.read_to_end(&mut buf)?;
@@ -70,11 +74,13 @@ pub struct TandemPayload<P1, P2> {
 }
 
 impl<P1, P2> TandemPayload<P1, P2> {
+    #[inline]
     pub fn new(load1: P1, load2: P2) -> Self {
         Self { load1, load2 }
     }
 
     /// Returns both payload stored in the tandem payload
+    #[inline]
     pub fn into_inner(self) -> (P1, P2) {
         (self.load1, self.load2)
     }
@@ -141,10 +147,12 @@ mod serde_payload {
 
     impl<T> SerdePayload<T> {
         /// Creates a new serde payload with a specified serializer
+        #[inline]
         pub fn new(serializer: DynamicSerializer, data: T) -> Self {
             Self { serializer, data }
         }
 
+        #[inline]
         pub fn data(self) -> T {
             self.data
         }
@@ -172,6 +180,7 @@ mod serde_payload {
     }
 
     impl<T: Serialize> IntoPayload for SerdePayload<T> {
+        #[inline]
         fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
             self.try_into_bytes()
         }
@@ -188,12 +197,14 @@ mod serde_payload {
     }
 
     impl<T: Serialize> IntoPayload for T {
+        #[inline]
         fn into_payload(self, ctx: &Context) -> IPCResult<Vec<u8>> {
             ctx.create_serde_payload(self).into_payload(&ctx)
         }
     }
 
     impl<T: DeserializeOwned> FromPayload for T {
+        #[inline]
         fn from_payload<R: Read>(reader: R) -> IPCResult<Self> {
             let serde_payload = SerdePayload::<Self>::from_payload(reader)?;
 

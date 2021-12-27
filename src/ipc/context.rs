@@ -1,21 +1,22 @@
-use crate::error::{Error, Result};
-use crate::event::Event;
-use crate::ipc::stream_emitter::{EmitMetadata, StreamEmitter};
-use futures::future;
-use futures::future::Either;
 use std::collections::HashMap;
 use std::mem;
 use std::ops::{Deref, DerefMut};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use futures::future;
+use futures::future::Either;
+use tokio::sync::{Mutex, oneshot, RwLock};
 use tokio::sync::oneshot::Sender;
-use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio::time::Duration;
 use typemap_rev::TypeMap;
 
-use crate::payload::IntoPayload;
+use crate::error::{Error, Result};
+use crate::event::Event;
+use crate::ipc::stream_emitter::{EmitMetadata, StreamEmitter};
 #[cfg(feature = "serialize")]
 use crate::payload::{DynamicSerializer, SerdePayload};
+use crate::payload::IntoPayload;
 
 pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>>;
 
@@ -108,8 +109,15 @@ impl Context {
     }
 
     /// Waits for a reply to the given message ID
+    #[inline]
     #[tracing::instrument(level = "debug", skip(self))]
     pub async fn await_reply(&self, message_id: u64) -> Result<Event> {
+        self.await_reply_with_timeout(message_id, self.reply_timeout.to_owned()).await
+    }
+
+    /// Waits for a reply to the given Message ID with a given timeout
+    #[tracing::instrument(level = "debug", skip(self))]
+    pub async fn await_reply_with_timeout(&self, message_id: u64, timeout: Duration) -> Result<Event> {
         let (rx, tx) = oneshot::channel();
         {
             let mut listeners = self.reply_listeners.lock().await;
@@ -117,9 +125,9 @@ impl Context {
         }
         let result = future::select(
             Box::pin(tx),
-            Box::pin(tokio::time::sleep(self.reply_timeout)),
+            Box::pin(tokio::time::sleep(timeout)),
         )
-        .await;
+            .await;
 
         let event = match result {
             Either::Left((tx_result, _)) => Ok(tx_result?),
@@ -145,16 +153,19 @@ impl Context {
     }
 
     #[cfg(feature = "serialize")]
+    #[inline]
     pub fn create_serde_payload<T>(&self, data: T) -> SerdePayload<T> {
         SerdePayload::new(self.default_serializer.clone(), data)
     }
 
     /// Returns the channel for a reply to the given message id
+    #[inline]
     pub(crate) async fn get_reply_sender(&self, ref_id: u64) -> Option<oneshot::Sender<Event>> {
         let mut listeners = self.reply_listeners.lock().await;
         listeners.remove(&ref_id)
     }
 
+    #[inline]
     pub(crate) fn set_ref_id(&mut self, id: Option<u64>) {
         self.ref_id = id;
     }
@@ -166,37 +177,40 @@ pub struct PooledContext {
 }
 
 pub struct PoolGuard<T>
-where
-    T: Clone,
+    where
+        T: Clone,
 {
     inner: T,
     count: Arc<AtomicUsize>,
 }
 
 impl<T> Deref for PoolGuard<T>
-where
-    T: Clone,
+    where
+        T: Clone,
 {
     type Target = T;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
 impl<T> DerefMut for PoolGuard<T>
-where
-    T: Clone,
+    where
+        T: Clone,
 {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
 
 impl<T> Clone for PoolGuard<T>
-where
-    T: Clone,
+    where
+        T: Clone,
 {
+    #[inline]
     fn clone(&self) -> Self {
         self.acquire();
 
@@ -208,17 +222,18 @@ where
 }
 
 impl<T> Drop for PoolGuard<T>
-where
-    T: Clone,
+    where
+        T: Clone,
 {
+    #[inline]
     fn drop(&mut self) {
         self.release();
     }
 }
 
 impl<T> PoolGuard<T>
-where
-    T: Clone,
+    where
+        T: Clone,
 {
     pub(crate) fn new(inner: T) -> Self {
         Self {
@@ -228,6 +243,7 @@ where
     }
 
     /// Acquires the context by adding 1 to the count
+    #[inline]
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn acquire(&self) {
         let count = self.count.fetch_add(1, Ordering::Relaxed);
@@ -235,12 +251,14 @@ where
     }
 
     /// Releases the connection by subtracting from the stored count
+    #[inline]
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn release(&self) {
         let count = self.count.fetch_sub(1, Ordering::Relaxed);
         tracing::trace!(count);
     }
 
+    #[inline]
     pub(crate) fn count(&self) -> usize {
         self.count.load(Ordering::Relaxed)
     }
@@ -256,6 +274,7 @@ impl PooledContext {
 
     /// Acquires a context from the pool
     /// It always chooses the one that is used the least
+    #[inline]
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn acquire(&self) -> PoolGuard<Context> {
         self.contexts
