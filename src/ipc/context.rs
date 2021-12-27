@@ -123,6 +123,7 @@ impl Context {
             let mut listeners = self.reply_listeners.lock().await;
             listeners.insert(message_id, rx);
         }
+
         let result = future::select(
             Box::pin(tx),
             Box::pin(tokio::time::sleep(timeout)),
