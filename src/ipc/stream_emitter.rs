@@ -5,6 +5,7 @@ use crate::ipc::context::Context;
 use crate::protocol::AsyncProtocolStream;
 use std::ops::DerefMut;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::Mutex;
 
@@ -50,6 +51,7 @@ impl StreamEmitter {
     }
 
     /// Emits an event
+    #[inline]
     pub(crate) async fn emit<S: AsRef<str>>(
         &self,
         event: S,
@@ -59,6 +61,7 @@ impl StreamEmitter {
     }
 
     /// Emits an event to a specific namespace
+    #[inline]
     pub(crate) async fn emit_to<S1: AsRef<str>, S2: AsRef<str>>(
         &self,
         namespace: S1,
@@ -70,6 +73,7 @@ impl StreamEmitter {
     }
 
     /// Emits a response to an event
+    #[inline]
     pub(crate) async fn emit_response<S: AsRef<str>>(
         &self,
         event_id: u64,
@@ -81,6 +85,7 @@ impl StreamEmitter {
     }
 
     /// Emits a response to an event to a namespace
+    #[inline]
     pub(crate) async fn emit_response_to<S1: AsRef<str>, S2: AsRef<str>>(
         &self,
         event_id: u64,
@@ -102,22 +107,37 @@ impl StreamEmitter {
 /// This object can be used to wait for a response to an event.
 pub struct EmitMetadata {
     message_id: u64,
+    timeout: Option<Duration>
 }
 
 impl EmitMetadata {
+    #[inline]
     pub(crate) fn new(message_id: u64) -> Self {
-        Self { message_id }
+        Self { message_id, timeout: None }
     }
 
     /// The ID of the emitted message
+    #[inline]
     pub fn message_id(&self) -> u64 {
         self.message_id
+    }
+
+    /// Sets a timeout for awaiting replies to this emitted event
+    #[inline]
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+
+        self
     }
 
     /// Waits for a reply to the given message.
     #[tracing::instrument(skip(self, ctx), fields(self.message_id))]
     pub async fn await_reply(&self, ctx: &Context) -> Result<Event> {
-        let reply = ctx.await_reply(self.message_id).await?;
+        let reply = if let Some(timeout) = self.timeout {
+            ctx.await_reply_with_timeout(self.message_id, timeout.clone()).await?
+        } else {
+            ctx.await_reply(self.message_id).await?
+        };
         if reply.name() == ERROR_EVENT_NAME {
             Err(reply.payload::<ErrorEventData>()?.into())
         } else {

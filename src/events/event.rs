@@ -56,17 +56,20 @@ impl Event {
     }
 
     /// The identifier of the message
+    #[inline]
     pub fn id(&self) -> u64 {
         self.header.id
     }
 
     /// The ID of the message referenced by this message.
     /// It represents the message that is replied to and can be None.
+    #[inline]
     pub fn reference_id(&self) -> Option<u64> {
         self.header.ref_id.clone()
     }
 
     /// Decodes the payload to the given type implementing the receive payload trait
+    #[inline]
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn payload<T: FromPayload>(&self) -> Result<T> {
         let payload = T::from_payload(&self.data[..])?;
@@ -75,16 +78,19 @@ impl Event {
     }
 
     /// Returns a reference of the underlying data
+    #[inline]
     pub fn data_raw(&self) -> &[u8] {
         &self.data
     }
 
     /// Returns a reference to the namespace
+    #[inline]
     pub fn namespace(&self) -> &Option<String> {
         &self.header.namespace
     }
 
     /// Returns the name of the event
+    #[inline]
     pub fn name(&self) -> &str {
         &self.header.name
     }
@@ -172,6 +178,7 @@ impl EventHeader {
     }
 
     /// Reads and validates the format version
+    #[inline]
     fn read_version<R: Read>(reader: &mut R) -> Result<Vec<u8>> {
         let mut version = vec![0u8; 3];
         reader.read_exact(&mut version)?;
@@ -184,6 +191,7 @@ impl EventHeader {
     }
 
     /// Reads the reference event id
+    #[inline]
     fn read_ref_id<R: Read>(reader: &mut R) -> Result<Option<u64>> {
         let ref_id_exists = reader.read_u8()?;
         let ref_id = match ref_id_exists {
@@ -196,6 +204,7 @@ impl EventHeader {
     }
 
     /// Reads the name of the event
+    #[inline]
     fn read_name<R: Read>(reader: &mut R) -> Result<String> {
         let name_len = reader.read_u16::<BigEndian>()?;
 
@@ -203,6 +212,7 @@ impl EventHeader {
     }
 
     /// Reads the namespace of the event
+    #[inline]
     fn read_namespace<R: Read>(reader: &mut R, namespace_len: u16) -> Result<Option<String>> {
         let namespace = if namespace_len > 0 {
             Some(Self::read_string(reader, namespace_len as usize)?)
@@ -213,6 +223,7 @@ impl EventHeader {
         Ok(namespace)
     }
 
+    #[inline]
     fn read_string<R: Read>(reader: &mut R, length: usize) -> Result<String> {
         let mut string_buf = vec![0u8; length];
         reader.read_exact(&mut string_buf)?;

@@ -90,6 +90,7 @@ impl DynamicSerializer {
         }
     }
 
+    #[inline]
     pub fn from_primitive(num: usize) -> SerializationResult<Self> {
         match num {
             #[cfg(feature = "serialize_rmp")]
