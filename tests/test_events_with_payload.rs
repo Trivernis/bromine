@@ -38,9 +38,7 @@ async fn it_receives_payloads() {
     };
     let reply = ctx
         .emit("ping", payload)
-        .await
-        .unwrap()
-        .await_reply(&ctx)
+        .await_reply()
         .await
         .unwrap();
     let reply_payload = reply.payload::<SimplePayload>().unwrap();

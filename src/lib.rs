@@ -53,7 +53,7 @@
 //!         .build_client().await.unwrap();
 //!
 //!     // emit an initial event
-//!     let response = ctx.emit("ping", ()).await.unwrap().await_reply(&ctx).await.unwrap();
+//!     let response = ctx.emit("ping", ()).await_reply().await.unwrap();
 //!     assert_eq!(response.name(), "pong");
 //! }
 //! ```

@@ -1,10 +1,11 @@
-use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use crate::error_event::{ERROR_EVENT_NAME, ErrorEventData};
 use crate::events::event_handler::EventHandler;
 use crate::namespaces::namespace::Namespace;
 use crate::prelude::*;
 use crate::protocol::AsyncProtocolStream;
-use std::collections::HashMap;
-use std::sync::Arc;
 
 pub mod builder;
 pub mod client;
@@ -65,11 +66,11 @@ fn handle_event(mut ctx: Context, handler: Arc<EventHandler>, event: Event) {
                         message: format!("{:?}", e),
                         code: 500,
                     },
-                )
-                .await
+                ).await
             {
                 tracing::error!("Error occurred when sending error response: {:?}", e);
             }
+
             tracing::error!("Failed to handle event: {:?}", e);
         }
     });
