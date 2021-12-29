@@ -47,9 +47,7 @@ async fn it_receives_responses() {
     let ctx = get_client_with_server(port).await;
     let reply = ctx
         .emit("ping", EmptyPayload)
-        .await
-        .unwrap()
-        .await_reply(&ctx)
+        .await_reply()
         .await
         .unwrap();
     let counter = get_counter_from_context(&ctx).await;
@@ -81,10 +79,8 @@ async fn it_receives_error_responses() {
     let ctx = get_client_with_server(port).await;
     let result = ctx
         .emit("create_error", EmptyPayload)
-        .await
-        .unwrap()
+        .await_reply()
         .with_timeout(Duration::from_millis(100))
-        .await_reply(&ctx)
         .await;
 
     let counter = get_counter_from_context(&ctx).await;

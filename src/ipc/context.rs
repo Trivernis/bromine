@@ -4,10 +4,8 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use futures::future;
-use futures::future::Either;
 use tokio::sync::{Mutex, oneshot, RwLock};
-use tokio::sync::oneshot::Sender;
+use tokio::sync::oneshot::{Sender, Receiver};
 use tokio::time::Duration;
 use typemap_rev::TypeMap;
 
@@ -42,9 +40,9 @@ pub struct Context {
 
     stop_sender: Arc<Mutex<Option<Sender<()>>>>,
 
-    reply_listeners: ReplyListeners,
+    pub(crate) reply_listeners: ReplyListeners,
 
-    reply_timeout: Duration,
+    pub default_reply_timeout: Duration,
 
     ref_id: Option<u64>,
 
@@ -66,7 +64,7 @@ impl Context {
             reply_listeners,
             data,
             stop_sender: Arc::new(Mutex::new(stop_sender)),
-            reply_timeout,
+            default_reply_timeout: reply_timeout,
             #[cfg(feature = "serialize")]
             default_serializer,
             ref_id: None,
@@ -74,72 +72,45 @@ impl Context {
     }
 
     /// Emits an event with a given payload that can be serialized into bytes
-    pub async fn emit<S: AsRef<str>, P: IntoPayload>(
+    pub fn emit<S: AsRef<str>, P: IntoPayload>(
         &self,
         name: S,
         payload: P,
-    ) -> Result<EmitMetadata> {
-        let payload_bytes = payload.into_payload(&self)?;
-
+    ) -> EmitMetadata<P> {
         if let Some(ref_id) = &self.ref_id {
             self.emitter
-                .emit_response(*ref_id, name, payload_bytes)
-                .await
+                .emit_response(self.clone(), *ref_id, name, payload)
         } else {
-            self.emitter.emit(name, payload_bytes).await
+            self.emitter.emit(self.clone(), name, payload)
         }
     }
 
     /// Emits an event to a specific namespace
-    pub async fn emit_to<S1: AsRef<str>, S2: AsRef<str>, P: IntoPayload>(
+    pub fn emit_to<S1: AsRef<str>, S2: AsRef<str>, P: IntoPayload>(
         &self,
         namespace: S1,
         name: S2,
         payload: P,
-    ) -> Result<EmitMetadata> {
-        let payload_bytes = payload.into_payload(&self)?;
-
+    ) -> EmitMetadata<P> {
         if let Some(ref_id) = &self.ref_id {
             self.emitter
-                .emit_response_to(*ref_id, namespace, name, payload_bytes)
-                .await
+                .emit_response_to(self.clone(), *ref_id, namespace, name, payload)
         } else {
-            self.emitter.emit_to(namespace, name, payload_bytes).await
+            self.emitter.emit_to(self.clone(), namespace, name, payload)
         }
     }
 
-    /// Waits for a reply to the given message ID
+    /// Registers a reply listener for a given event
     #[inline]
     #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn await_reply(&self, message_id: u64) -> Result<Event> {
-        self.await_reply_with_timeout(message_id, self.reply_timeout.to_owned()).await
-    }
-
-    /// Waits for a reply to the given Message ID with a given timeout
-    #[tracing::instrument(level = "debug", skip(self))]
-    pub async fn await_reply_with_timeout(&self, message_id: u64, timeout: Duration) -> Result<Event> {
+    pub(crate) async fn register_reply_listener(&self, event_id: u64) -> Result<Receiver<Event>> {
         let (rx, tx) = oneshot::channel();
         {
             let mut listeners = self.reply_listeners.lock().await;
-            listeners.insert(message_id, rx);
+            listeners.insert(event_id, rx);
         }
 
-        let result = future::select(
-            Box::pin(tx),
-            Box::pin(tokio::time::sleep(timeout)),
-        )
-            .await;
-
-        let event = match result {
-            Either::Left((tx_result, _)) => Ok(tx_result?),
-            Either::Right(_) => {
-                let mut listeners = self.reply_listeners.lock().await;
-                listeners.remove(&message_id);
-                Err(Error::Timeout)
-            }
-        }?;
-
-        Ok(event)
+        Ok(tx)
     }
 
     /// Stops the listener and closes the connection

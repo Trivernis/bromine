@@ -36,6 +36,9 @@ pub enum Error {
 
     #[error("Unsupported API Version {0}")]
     UnsupportedVersion(String),
+
+    #[error("Invalid state")]
+    InvalidState,
 }
 
 impl Error {
