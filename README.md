@@ -32,7 +32,7 @@ async fn main() {
         .build_client().await.unwrap();
 
 // emit an initial event
-    let response = ctx.emit("ping", ()).await?.await_response(&ctx).await?;
+    let response = ctx.emit("ping", ()).await_response().await?;
 }
 ```
 
@@ -80,8 +80,8 @@ async fn main() {
         .build_client().await.unwrap();
 
 // emit an initial event
-    let response = ctx.emit_to("mainspace-server", "ping", ()).await?
-        .await_response(&ctx).await?;
+    let response = ctx.emit_to("mainspace-server", "ping", ())
+        .await_response().await?;
 }
 ```
 

@@ -164,14 +164,14 @@ impl<P: IntoPayload> EventMetadata<P> {
 pub struct EmitMetadata<P: IntoPayload> {
     event_metadata: Option<EventMetadata<P>>,
     stream: Option<SendStream>,
-    fut: Option<Pin<Box<dyn Future<Output=Result<u64>> + Send>>>,
+    fut: Option<Pin<Box<dyn Future<Output=Result<u64>> + Send + Sync>>>,
 }
 
 /// A metadata object returned after waiting for a reply to an event
 /// This object needs to be awaited for to get the actual reply
 pub struct EmitMetadataWithResponse<P: IntoPayload> {
     timeout: Option<Duration>,
-    fut: Option<Pin<Box<dyn Future<Output=Result<Event>>>>>,
+    fut: Option<Pin<Box<dyn Future<Output=Result<Event>> + Send + Sync>>>,
     emit_metadata: Option<EmitMetadata<P>>,
 }
 
@@ -217,7 +217,7 @@ impl<P: IntoPayload> Unpin for EmitMetadata<P> {}
 
 impl<P: IntoPayload> Unpin for EmitMetadataWithResponse<P> {}
 
-impl<P: IntoPayload + 'static> Future for EmitMetadata<P> {
+impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadata<P> {
     type Output = Result<u64>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
@@ -244,7 +244,7 @@ impl<P: IntoPayload + 'static> Future for EmitMetadata<P> {
     }
 }
 
-impl<P: IntoPayload + 'static> Future for EmitMetadataWithResponse<P> {
+impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse<P> {
     type Output = Result<Event>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
