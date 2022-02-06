@@ -2,6 +2,7 @@
 use bromine::prelude::*;
 #[cfg(feature = "serialize")]
 use serde::{de::DeserializeOwned, Serialize};
+use std::fmt::Debug;
 
 #[cfg(feature = "serialize_rmp")]
 #[test]

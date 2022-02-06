@@ -6,19 +6,19 @@
 //! use tokio::net::TcpListener;
 //!
 //! /// Callback ping function
-//! async fn handle_ping(ctx: &Context, event: Event) -> IPCResult<()> {
+//! async fn handle_ping(ctx: &Context, event: Event) -> IPCResult<Response> {
 //!     println!("Received ping event.");
 //!     ctx.emit("pong", ()).await?;
 //!
-//!     Ok(())
+//!     Ok(Response::empty())
 //! }
 //!
 //! pub struct MyNamespace;
 //!
 //! impl MyNamespace {
-//!     async fn ping(_ctx: &Context, _event: Event) -> IPCResult<()> {
+//!     async fn ping(_ctx: &Context, _event: Event) -> IPCResult<Response> {
 //!         println!("My namespace received a ping");
-//!         Ok(())
+//!         Ok(Response::empty())
 //!     }
 //! }
 //!
@@ -46,7 +46,7 @@
 //!         .on("something", callback!(ctx, event, async move {
 //!             println!("I think the server did something");
 //!             ctx.emit_to("mainspace-server", "ok", ()).await?;
-//!             Ok(())
+//!             Ok(Response::empty())
 //!         }))
 //!         .build()
 //!         .add_namespace(namespace!(MyNamespace))
@@ -63,7 +63,7 @@
 //! use std::net::ToSocketAddrs;
 //! use typemap_rev::TypeMapKey;
 //! use bromine::IPCBuilder;
-//! use bromine::callback;
+//! use bromine::prelude::*;
 //! use tokio::net::TcpListener;
 //!
 //! struct MyKey;
@@ -80,7 +80,7 @@
 //!     .on("ping", callback!(ctx, event, async move {
 //!         println!("Received ping event.");
 //!         ctx.emit("pong", ()).await?;
-//!         Ok(())
+//!         Ok(Response::empty())
 //!     }))
 //!     .namespace("mainspace-server")
 //!     .on("do-something", callback!(ctx, event, async move {
@@ -92,7 +92,7 @@
 //!             *my_key += 1;
 //!         }
 //!         ctx.emit_to("mainspace-client", "something", ()).await?;
-//!         Ok(())
+//!         Ok(Response::empty())
 //!     }))
 //!     .build()
 //!     // store additional data
