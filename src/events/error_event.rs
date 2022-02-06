@@ -8,6 +8,7 @@ use std::fmt::{Display, Formatter};
 use std::io::Read;
 
 pub static ERROR_EVENT_NAME: &str = "error";
+pub static END_EVENT_NAME: &str = "end";
 
 /// Data returned on error event.
 /// The error event has a default handler that just logs that

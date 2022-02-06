@@ -15,6 +15,7 @@ use crate::ipc::stream_emitter::{EmitMetadata, StreamEmitter};
 use crate::payload::IntoPayload;
 #[cfg(feature = "serialize")]
 use crate::payload::{DynamicSerializer, SerdePayload};
+use crate::prelude::Response;
 
 pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>>;
 
@@ -112,6 +113,11 @@ impl Context {
         } else {
             self.emitter.emit_to(self.clone(), namespace, name, payload)
         }
+    }
+
+    /// Ends the event flow by creating a final response
+    pub fn response<P: IntoPayload>(&self, payload: P) -> Result<Response> {
+        Response::payload(self, payload)
     }
 
     /// Registers a reply listener for a given event

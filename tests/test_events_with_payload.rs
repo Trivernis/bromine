@@ -36,11 +36,7 @@ async fn it_receives_payloads() {
         number: 0,
         string: String::from("Hello World"),
     };
-    let reply = ctx
-        .emit("ping", payload)
-        .await_reply()
-        .await
-        .unwrap();
+    let reply = ctx.emit("ping", payload).await_reply().await.unwrap();
     let reply_payload = reply.payload::<SimplePayload>().unwrap();
 
     let counters = get_counter_from_context(&ctx).await;
@@ -62,19 +58,19 @@ fn get_builder(port: u8) -> IPCBuilder<TestProtocolListener> {
         .timeout(Duration::from_millis(10))
 }
 
-async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
+async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<Response> {
     increment_counter_for_event(ctx, &event).await;
     let payload = event.payload::<SimplePayload>()?;
     ctx.emit("pong", payload).await?;
 
-    Ok(())
+    Ok(Response::empty())
 }
 
-async fn handle_pong_event(ctx: &Context, event: Event) -> IPCResult<()> {
+async fn handle_pong_event(ctx: &Context, event: Event) -> IPCResult<Response> {
     increment_counter_for_event(ctx, &event).await;
     let _payload = event.payload::<SimplePayload>()?;
 
-    Ok(())
+    Ok(Response::empty())
 }
 
 #[cfg(feature = "serialize")]

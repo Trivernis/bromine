@@ -134,7 +134,7 @@ pub mod prelude {
     pub use crate::error::Error as IPCError;
     pub use crate::error::Result as IPCResult;
     pub use crate::event::Event;
-    pub use crate::event_handler::EventHandler;
+    pub use crate::event_handler::{EventHandler, Response};
     pub use crate::ipc::context::Context;
     pub use crate::ipc::context::{PoolGuard, PooledContext};
     pub use crate::ipc::*;
