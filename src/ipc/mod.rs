@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::error_event::{ERROR_EVENT_NAME, ErrorEventData};
+use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
+use crate::event::EventType;
 use crate::events::event_handler::EventHandler;
 use crate::namespaces::namespace::Namespace;
 use crate::prelude::*;
@@ -60,13 +61,16 @@ fn handle_event(mut ctx: Context, handler: Arc<EventHandler>, event: Event) {
         if let Err(e) = handler.handle_event(&ctx, event).await {
             // emit an error event
             if let Err(e) = ctx
-                .emit(
+                .emit_raw(
                     ERROR_EVENT_NAME,
+                    None,
+                    EventType::Error,
                     ErrorEventData {
                         message: format!("{:?}", e),
                         code: 500,
                     },
-                ).await
+                )
+                .await
             {
                 tracing::error!("Error occurred when sending error response: {:?}", e);
             }

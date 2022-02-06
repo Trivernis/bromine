@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 use std::mem;
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
-use tokio::sync::{Mutex, oneshot, RwLock};
-use tokio::sync::oneshot::{Sender, Receiver};
+use tokio::sync::oneshot::{Receiver, Sender};
+use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio::time::Duration;
 use typemap_rev::TypeMap;
 
 use crate::error::{Error, Result};
-use crate::event::Event;
+use crate::event::{Event, EventType};
 use crate::ipc::stream_emitter::{EmitMetadata, StreamEmitter};
+use crate::payload::IntoPayload;
 #[cfg(feature = "serialize")]
 use crate::payload::{DynamicSerializer, SerdePayload};
-use crate::payload::IntoPayload;
 
 pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>>;
 
@@ -71,12 +71,26 @@ impl Context {
         }
     }
 
-    /// Emits an event with a given payload that can be serialized into bytes
-    pub fn emit<S: AsRef<str>, P: IntoPayload>(
+    /// Emits a raw event. Only for internal use
+    pub(crate) fn emit_raw<P: IntoPayload>(
         &self,
-        name: S,
+        name: &str,
+        namespace: Option<String>,
+        event_type: EventType,
         payload: P,
     ) -> EmitMetadata<P> {
+        self.emitter.emit_raw(
+            self.clone(),
+            self.ref_id.clone(),
+            name,
+            namespace,
+            event_type,
+            payload,
+        )
+    }
+
+    /// Emits an event with a given payload that can be serialized into bytes
+    pub fn emit<S: AsRef<str>, P: IntoPayload>(&self, name: S, payload: P) -> EmitMetadata<P> {
         if let Some(ref_id) = &self.ref_id {
             self.emitter
                 .emit_response(self.clone(), *ref_id, name, payload)
@@ -149,16 +163,16 @@ pub struct PooledContext {
 }
 
 pub struct PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     inner: T,
     count: Arc<AtomicUsize>,
 }
 
 impl<T> Deref for PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     type Target = T;
 
@@ -169,8 +183,8 @@ impl<T> Deref for PoolGuard<T>
 }
 
 impl<T> DerefMut for PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -179,8 +193,8 @@ impl<T> DerefMut for PoolGuard<T>
 }
 
 impl<T> Clone for PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -194,8 +208,8 @@ impl<T> Clone for PoolGuard<T>
 }
 
 impl<T> Drop for PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     #[inline]
     fn drop(&mut self) {
@@ -204,8 +218,8 @@ impl<T> Drop for PoolGuard<T>
 }
 
 impl<T> PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     pub(crate) fn new(inner: T) -> Self {
         Self {

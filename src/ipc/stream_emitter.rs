@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 use tracing;
 
 use crate::error::{Error, Result};
-use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
+use crate::error_event::ErrorEventData;
 use crate::event::EventType;
 use crate::events::event::Event;
 use crate::ipc::context::Context;
@@ -52,7 +52,7 @@ impl StreamEmitter {
     fn _emit<P: IntoPayload>(
         &self,
         ctx: Context,
-        namespace: Option<&str>,
+        namespace: Option<String>,
         event: &str,
         payload: P,
         res_id: Option<u64>,
@@ -62,7 +62,7 @@ impl StreamEmitter {
             ctx,
             self.stream.clone(),
             event.to_string(),
-            namespace.map(|n| n.to_string()),
+            namespace,
             payload,
             res_id,
             event_type,
@@ -98,12 +98,26 @@ impl StreamEmitter {
     ) -> EmitMetadata<P> {
         self._emit(
             ctx,
-            Some(namespace.as_ref()),
+            Some(namespace.as_ref().to_string()),
             event.as_ref(),
             payload,
             None,
             EventType::Initiator,
         )
+    }
+
+    /// Emits a raw event
+    #[inline]
+    pub(crate) fn emit_raw<P: IntoPayload>(
+        &self,
+        ctx: Context,
+        res_id: Option<u64>,
+        event: &str,
+        namespace: Option<String>,
+        event_type: EventType,
+        payload: P,
+    ) -> EmitMetadata<P> {
+        self._emit(ctx, namespace, event, payload, res_id, event_type)
     }
 
     /// Emits a response to an event
@@ -137,7 +151,7 @@ impl StreamEmitter {
     ) -> EmitMetadata<P> {
         self._emit(
             ctx,
-            Some(namespace.as_ref()),
+            Some(namespace.as_ref().to_string()),
             event.as_ref(),
             payload,
             Some(event_id),
@@ -330,7 +344,7 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse
                         Err(Error::Timeout)
                     }
                 }?;
-                if reply.name() == ERROR_EVENT_NAME {
+                if reply.event_type() == EventType::Error {
                     Err(reply.payload::<ErrorEventData>()?.into())
                 } else {
                     Ok(reply)
