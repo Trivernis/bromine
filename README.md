@@ -19,7 +19,7 @@ use tokio::net::TcpListener;
 async fn handle_ping(ctx: &Context, event: Event) -> Result<()> {
     println!("Received ping event.");
     ctx.emit("pong", ()).await?;
-    Ok(())
+    Ok(Response::empty())
 }
 
 #[tokio::main]
@@ -31,8 +31,15 @@ async fn main() {
         .on("ping", callback!(handle_ping))
         .build_client().await.unwrap();
 
-// emit an initial event
-    let response = ctx.emit("ping", ()).await_response().await?;
+    // emit an event and wait for responses
+    let response = ctx.emit("ping", ()).await_reply().await?;
+    
+    // emit an event and get all responses as stream
+    let stream = ctx.emit("ping", ()).stream_replies().await?;
+    
+    while let Some(Ok(event)) = stream.next().await {
+        println!("{}", event.name());
+    }
 }
 ```
 
@@ -50,7 +57,10 @@ async fn main() {
         // register callback
         .on("ping", callback!(ctx, event, async move {
             println!("Received ping event.");
-            Ok(())
+            for _ in 0..10 {
+                ctx.emit("pong", ()).await?;
+            }
+            Ok(Response::empty())
         }))
         .build_server().await.unwrap();
 }
