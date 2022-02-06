@@ -5,13 +5,14 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use tokio::sync::oneshot::{Receiver, Sender};
-use tokio::sync::{oneshot, Mutex, RwLock};
+use tokio::sync::{Mutex, oneshot, RwLock};
 use tokio::time::Duration;
 use typemap_rev::TypeMap;
 
 use crate::error::{Error, Result};
 use crate::event::{Event, EventType};
-use crate::ipc::stream_emitter::{EmitMetadata, StreamEmitter};
+use crate::ipc::stream_emitter::StreamEmitter;
+use crate::ipc::stream_emitter::emit_metadata::EmitMetadata;
 use crate::payload::IntoPayload;
 #[cfg(feature = "serialize")]
 use crate::payload::{DynamicSerializer, SerdePayload};
