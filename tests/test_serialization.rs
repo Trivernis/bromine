@@ -11,7 +11,7 @@ use std::fmt::Debug;
 fn it_serializes_messagepack() {
     test_serialization::<BigTestPayload>(DynamicSerializer::Messagepack).unwrap();
     test_serialization::<AdjacentlyTaggedEnum>(DynamicSerializer::Messagepack).unwrap();
-    test_serialization::<u128>(DynamicSerializer::Messagepack).unwrap_err();
+    test_serialization::<u128>(DynamicSerializer::Messagepack).unwrap();
 }
 
 #[cfg(feature = "serialize_bincode")]
