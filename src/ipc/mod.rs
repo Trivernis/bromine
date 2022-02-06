@@ -34,8 +34,8 @@ async fn handle_connection<S: 'static + AsyncProtocolStream>(
             // get the listener for replies
             if let Some(sender) = ctx.get_reply_sender(ref_id).await {
                 // try sending the event to the listener for replies
-                if let Err(event) = sender.send(event) {
-                    handle_event(Context::clone(&ctx), Arc::clone(&handler), event);
+                if let Err(event) = sender.send(event).await {
+                    handle_event(Context::clone(&ctx), Arc::clone(&handler), event.0);
                 }
                 continue;
             }

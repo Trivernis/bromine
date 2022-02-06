@@ -1,28 +1,21 @@
 pub mod emit_metadata;
 pub mod emit_metadata_with_response;
+pub mod emit_metadata_with_response_stream;
 mod event_metadata;
-
-
-
-
 
 use std::sync::Arc;
 
-
-
-use emit_metadata::EmitMetadata;
-
-
-
-use tokio::io::{AsyncWrite};
+use tokio::io::AsyncWrite;
 use tokio::sync::Mutex;
 use tracing;
-
 
 use crate::event::EventType;
 use crate::ipc::context::Context;
 use crate::payload::IntoPayload;
 use crate::protocol::AsyncProtocolStream;
+
+pub use emit_metadata_with_response_stream::ResponseStream;
+use crate::prelude::emit_metadata::EmitMetadata;
 
 #[macro_export]
 macro_rules! poll_unwrap {

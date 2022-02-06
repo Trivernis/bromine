@@ -4,21 +4,21 @@ use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use tokio::sync::oneshot::{Receiver, Sender};
-use tokio::sync::{Mutex, oneshot, RwLock};
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
 use tokio::time::Duration;
 use typemap_rev::TypeMap;
 
 use crate::error::{Error, Result};
 use crate::event::{Event, EventType};
-use crate::ipc::stream_emitter::StreamEmitter;
 use crate::ipc::stream_emitter::emit_metadata::EmitMetadata;
+use crate::ipc::stream_emitter::StreamEmitter;
 use crate::payload::IntoPayload;
 #[cfg(feature = "serialize")]
 use crate::payload::{DynamicSerializer, SerdePayload};
 use crate::prelude::Response;
 
-pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>>;
+pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, mpsc::Sender<Event>>>>;
 
 /// An object provided to each callback function.
 /// Currently it only holds the event emitter to emit response events in event callbacks.
@@ -40,7 +40,7 @@ pub struct Context {
     /// Field to store additional context data
     pub data: Arc<RwLock<TypeMap>>,
 
-    stop_sender: Arc<Mutex<Option<Sender<()>>>>,
+    stop_sender: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 
     pub(crate) reply_listeners: ReplyListeners,
 
@@ -56,7 +56,7 @@ impl Context {
     pub(crate) fn new(
         emitter: StreamEmitter,
         data: Arc<RwLock<TypeMap>>,
-        stop_sender: Option<Sender<()>>,
+        stop_sender: Option<oneshot::Sender<()>>,
         reply_listeners: ReplyListeners,
         reply_timeout: Duration,
         #[cfg(feature = "serialize")] default_serializer: DynamicSerializer,
@@ -125,7 +125,7 @@ impl Context {
     #[inline]
     #[tracing::instrument(level = "debug", skip(self))]
     pub(crate) async fn register_reply_listener(&self, event_id: u64) -> Result<Receiver<Event>> {
-        let (rx, tx) = oneshot::channel();
+        let (rx, tx) = mpsc::channel(8);
         {
             let mut listeners = self.reply_listeners.lock().await;
             listeners.insert(event_id, rx);
@@ -153,9 +153,9 @@ impl Context {
 
     /// Returns the channel for a reply to the given message id
     #[inline]
-    pub(crate) async fn get_reply_sender(&self, ref_id: u64) -> Option<oneshot::Sender<Event>> {
-        let mut listeners = self.reply_listeners.lock().await;
-        listeners.remove(&ref_id)
+    pub(crate) async fn get_reply_sender(&self, ref_id: u64) -> Option<mpsc::Sender<Event>> {
+        let listeners = self.reply_listeners.lock().await;
+        listeners.get(&ref_id).cloned()
     }
 
     #[inline]

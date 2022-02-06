@@ -1,11 +1,10 @@
+use crate::context::Context;
 use crate::error::Error;
 use crate::error_event::ErrorEventData;
 use crate::event::{Event, EventType};
 use crate::ipc::stream_emitter::emit_metadata::EmitMetadata;
 use crate::payload::IntoPayload;
 use crate::{error, poll_unwrap};
-use futures::future;
-use futures::future::Either;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
@@ -54,20 +53,20 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse
             };
 
             self.fut = Some(Box::pin(async move {
-                let tx = ctx.register_reply_listener(event_id).await?;
+                let mut tx = ctx.register_reply_listener(event_id).await?;
                 emit_metadata.await?;
 
-                let result =
-                    future::select(Box::pin(tx), Box::pin(tokio::time::sleep(timeout))).await;
-
-                let reply = match result {
-                    Either::Left((tx_result, _)) => Ok(tx_result?),
-                    Either::Right(_) => {
-                        let mut listeners = ctx.reply_listeners.lock().await;
-                        listeners.remove(&event_id);
+                let reply = tokio::select! {
+                    tx_result = tx.recv() => {
+                        Ok(tx_result.ok_or_else(|| Error::SendError)?)
+                    }
+                    _ = tokio::time::sleep(timeout) => {
                         Err(Error::Timeout)
                     }
                 }?;
+
+                remove_reply_listener(&ctx, event_id).await;
+
                 if reply.event_type() == EventType::Error {
                     Err(reply.payload::<ErrorEventData>()?.into())
                 } else {
@@ -77,4 +76,9 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse
         }
         self.fut.as_mut().unwrap().as_mut().poll(cx)
     }
+}
+
+pub(crate) async fn remove_reply_listener(ctx: &Context, event_id: u64) {
+    let mut listeners = ctx.reply_listeners.lock().await;
+    listeners.remove(&event_id);
 }

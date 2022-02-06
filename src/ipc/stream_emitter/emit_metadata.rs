@@ -2,6 +2,7 @@ use crate::context::Context;
 use crate::error::Error;
 use crate::event::EventType;
 use crate::ipc::stream_emitter::emit_metadata_with_response::EmitMetadataWithResponse;
+use crate::ipc::stream_emitter::emit_metadata_with_response_stream::EmitMetadataWithResponseStream;
 use crate::ipc::stream_emitter::event_metadata::EventMetadata;
 use crate::ipc::stream_emitter::SendStream;
 use crate::payload::IntoPayload;
@@ -52,6 +53,14 @@ impl<P: IntoPayload> EmitMetadata<P> {
     #[tracing::instrument(skip(self), fields(self.message_id))]
     pub fn await_reply(self) -> EmitMetadataWithResponse<P> {
         EmitMetadataWithResponse {
+            timeout: None,
+            fut: None,
+            emit_metadata: Some(self),
+        }
+    }
+
+    pub fn stream_replies(self) -> EmitMetadataWithResponseStream<P> {
+        EmitMetadataWithResponseStream {
             timeout: None,
             fut: None,
             emit_metadata: Some(self),

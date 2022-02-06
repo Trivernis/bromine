@@ -101,6 +101,7 @@ dependencies = [
  "criterion",
  "crossbeam-utils",
  "futures",
+ "futures-core",
  "lazy_static",
  "num_enum",
  "postcard",

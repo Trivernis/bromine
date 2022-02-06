@@ -137,6 +137,7 @@ pub mod prelude {
     pub use crate::event_handler::{EventHandler, Response};
     pub use crate::ipc::context::Context;
     pub use crate::ipc::context::{PoolGuard, PooledContext};
+    pub use crate::ipc::stream_emitter::*;
     pub use crate::ipc::*;
     pub use crate::macros::*;
     pub use crate::namespace::Namespace;
