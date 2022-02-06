@@ -2,23 +2,23 @@ pub mod emit_metadata;
 pub mod emit_metadata_with_response;
 mod event_metadata;
 
-use std::future::Future;
-use std::mem;
-use std::ops::DerefMut;
-use std::pin::Pin;
+
+
+
+
 use std::sync::Arc;
-use std::task::Poll;
-use std::time::Duration;
+
+
 
 use emit_metadata::EmitMetadata;
-use event_metadata::EventMetadata;
-use futures::future;
-use futures::future::Either;
-use tokio::io::{AsyncWrite, AsyncWriteExt};
+
+
+
+use tokio::io::{AsyncWrite};
 use tokio::sync::Mutex;
 use tracing;
 
-use crate::error::Result;
+
 use crate::event::EventType;
 use crate::ipc::context::Context;
 use crate::payload::IntoPayload;
