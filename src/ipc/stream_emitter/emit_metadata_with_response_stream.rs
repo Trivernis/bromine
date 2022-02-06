@@ -20,6 +20,7 @@ pub struct EmitMetadataWithResponseStream<P: IntoPayload> {
     pub(crate) emit_metadata: Option<EmitMetadata<P>>,
 }
 
+/// An asynchronous stream one can read all responses to a specific event from.
 pub struct ResponseStream {
     event_id: u64,
     ctx: Option<Context>,

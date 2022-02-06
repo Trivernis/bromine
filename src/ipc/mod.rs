@@ -62,6 +62,7 @@ async fn handle_connection<S: 'static + AsyncProtocolStream>(
 /// Handles a single event in a different tokio context
 fn handle_event(mut ctx: Context, handler: Arc<EventHandler>, event: Event) {
     ctx.set_ref_id(Some(event.id()));
+    let event_id = event.id();
 
     tokio::spawn(async move {
         match handler.handle_event(&ctx, event).await {
@@ -74,6 +75,8 @@ fn handle_event(mut ctx: Context, handler: Arc<EventHandler>, event: Event) {
                 {
                     tracing::error!("Error occurred when sending error response: {:?}", e);
                 }
+                let mut reply_listeners = ctx.reply_listeners.lock().await;
+                reply_listeners.remove(&event_id);
             }
             Err(e) => {
                 // emit an error event
