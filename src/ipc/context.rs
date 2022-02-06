@@ -1,22 +1,24 @@
 use std::collections::HashMap;
 use std::mem;
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
-use tokio::sync::{Mutex, oneshot, RwLock};
-use tokio::sync::oneshot::{Sender, Receiver};
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
 use tokio::time::Duration;
 use typemap_rev::TypeMap;
 
 use crate::error::{Error, Result};
-use crate::event::Event;
-use crate::ipc::stream_emitter::{EmitMetadata, StreamEmitter};
+use crate::event::{Event, EventType};
+use crate::ipc::stream_emitter::emit_metadata::EmitMetadata;
+use crate::ipc::stream_emitter::StreamEmitter;
+use crate::payload::IntoPayload;
 #[cfg(feature = "serialize")]
 use crate::payload::{DynamicSerializer, SerdePayload};
-use crate::payload::IntoPayload;
+use crate::prelude::Response;
 
-pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, oneshot::Sender<Event>>>>;
+pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, mpsc::Sender<Event>>>>;
 
 /// An object provided to each callback function.
 /// Currently it only holds the event emitter to emit response events in event callbacks.
@@ -38,7 +40,7 @@ pub struct Context {
     /// Field to store additional context data
     pub data: Arc<RwLock<TypeMap>>,
 
-    stop_sender: Arc<Mutex<Option<Sender<()>>>>,
+    stop_sender: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 
     pub(crate) reply_listeners: ReplyListeners,
 
@@ -54,7 +56,7 @@ impl Context {
     pub(crate) fn new(
         emitter: StreamEmitter,
         data: Arc<RwLock<TypeMap>>,
-        stop_sender: Option<Sender<()>>,
+        stop_sender: Option<oneshot::Sender<()>>,
         reply_listeners: ReplyListeners,
         reply_timeout: Duration,
         #[cfg(feature = "serialize")] default_serializer: DynamicSerializer,
@@ -71,12 +73,26 @@ impl Context {
         }
     }
 
-    /// Emits an event with a given payload that can be serialized into bytes
-    pub fn emit<S: AsRef<str>, P: IntoPayload>(
+    /// Emits a raw event. Only for internal use
+    pub(crate) fn emit_raw<P: IntoPayload>(
         &self,
-        name: S,
+        name: &str,
+        namespace: Option<String>,
+        event_type: EventType,
         payload: P,
     ) -> EmitMetadata<P> {
+        self.emitter.emit_raw(
+            self.clone(),
+            self.ref_id.clone(),
+            name,
+            namespace,
+            event_type,
+            payload,
+        )
+    }
+
+    /// Emits an event with a given payload that can be serialized into bytes
+    pub fn emit<S: AsRef<str>, P: IntoPayload>(&self, name: S, payload: P) -> EmitMetadata<P> {
         if let Some(ref_id) = &self.ref_id {
             self.emitter
                 .emit_response(self.clone(), *ref_id, name, payload)
@@ -100,11 +116,16 @@ impl Context {
         }
     }
 
+    /// Ends the event flow by creating a final response
+    pub fn response<P: IntoPayload>(&self, payload: P) -> Result<Response> {
+        Response::payload(self, payload)
+    }
+
     /// Registers a reply listener for a given event
     #[inline]
     #[tracing::instrument(level = "debug", skip(self))]
     pub(crate) async fn register_reply_listener(&self, event_id: u64) -> Result<Receiver<Event>> {
-        let (rx, tx) = oneshot::channel();
+        let (rx, tx) = mpsc::channel(8);
         {
             let mut listeners = self.reply_listeners.lock().await;
             listeners.insert(event_id, rx);
@@ -132,9 +153,9 @@ impl Context {
 
     /// Returns the channel for a reply to the given message id
     #[inline]
-    pub(crate) async fn get_reply_sender(&self, ref_id: u64) -> Option<oneshot::Sender<Event>> {
-        let mut listeners = self.reply_listeners.lock().await;
-        listeners.remove(&ref_id)
+    pub(crate) async fn get_reply_sender(&self, ref_id: u64) -> Option<mpsc::Sender<Event>> {
+        let listeners = self.reply_listeners.lock().await;
+        listeners.get(&ref_id).cloned()
     }
 
     #[inline]
@@ -149,16 +170,16 @@ pub struct PooledContext {
 }
 
 pub struct PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     inner: T,
     count: Arc<AtomicUsize>,
 }
 
 impl<T> Deref for PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     type Target = T;
 
@@ -169,8 +190,8 @@ impl<T> Deref for PoolGuard<T>
 }
 
 impl<T> DerefMut for PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -179,8 +200,8 @@ impl<T> DerefMut for PoolGuard<T>
 }
 
 impl<T> Clone for PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -194,8 +215,8 @@ impl<T> Clone for PoolGuard<T>
 }
 
 impl<T> Drop for PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     #[inline]
     fn drop(&mut self) {
@@ -204,8 +225,8 @@ impl<T> Drop for PoolGuard<T>
 }
 
 impl<T> PoolGuard<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     pub(crate) fn new(inner: T) -> Self {
         Self {

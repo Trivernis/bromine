@@ -2,6 +2,8 @@ use crate::error::{Error, Result};
 use crate::events::generate_event_id;
 use crate::events::payload::FromPayload;
 use byteorder::{BigEndian, ReadBytesExt};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::io::{Cursor, Read};
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -20,36 +22,65 @@ pub struct Event {
 #[derive(Debug)]
 struct EventHeader {
     id: u64,
+    event_type: EventType,
     ref_id: Option<u64>,
     namespace: Option<String>,
     name: String,
 }
 
+#[derive(Clone, Debug, TryFromPrimitive, IntoPrimitive, Copy, Ord, PartialOrd, Eq, PartialEq)]
+#[repr(u8)]
+pub enum EventType {
+    Initiator,
+    Response,
+    End,
+    Error,
+}
+
 impl Event {
-    /// Creates a new event with a namespace
+    /// Creates a new event that acts as an initiator for further response events
     #[tracing::instrument(level = "trace", skip(data))]
-    pub fn with_namespace(
-        namespace: String,
-        name: String,
-        data: Vec<u8>,
-        ref_id: Option<u64>,
-    ) -> Self {
-        let header = EventHeader {
-            id: generate_event_id(),
-            ref_id,
-            namespace: Some(namespace),
-            name,
-        };
-        Self { header, data }
+    #[inline]
+    pub fn initiator(namespace: Option<String>, name: String, data: Vec<u8>) -> Self {
+        Self::new(namespace, name, data, None, EventType::Initiator)
+    }
+
+    /// Creates a new event that is a response to a previous event
+    #[tracing::instrument(level = "trace", skip(data))]
+    #[inline]
+    pub fn response(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
+        Self::new(namespace, name, data, Some(ref_id), EventType::Response)
+    }
+
+    /// Creates a new error event as a response to a previous event
+    #[tracing::instrument(level = "trace", skip(data))]
+    #[inline]
+    pub fn error(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
+        Self::new(namespace, name, data, Some(ref_id), EventType::Error)
+    }
+
+    /// Creates a new event that indicates the end of a series of responses (in an event handler)
+    /// and might contain a final response payload
+    #[tracing::instrument(level = "trace", skip(data))]
+    #[inline]
+    pub fn end(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
+        Self::new(namespace, name, data, Some(ref_id), EventType::Response)
     }
 
     /// Creates a new event
     #[tracing::instrument(level = "trace", skip(data))]
-    pub fn new(name: String, data: Vec<u8>, ref_id: Option<u64>) -> Self {
+    pub(crate) fn new(
+        namespace: Option<String>,
+        name: String,
+        data: Vec<u8>,
+        ref_id: Option<u64>,
+        event_type: EventType,
+    ) -> Self {
         let header = EventHeader {
             id: generate_event_id(),
+            event_type,
             ref_id,
-            namespace: None,
+            namespace,
             name,
         };
         Self { header, data }
@@ -59,6 +90,12 @@ impl Event {
     #[inline]
     pub fn id(&self) -> u64 {
         self.header.id
+    }
+
+    /// The type of the event
+    #[inline]
+    pub fn event_type(&self) -> EventType {
+        self.header.event_type
     }
 
     /// The ID of the message referenced by this message.
@@ -139,6 +176,7 @@ impl EventHeader {
     pub fn into_bytes(self) -> Vec<u8> {
         let mut buf = FORMAT_VERSION.to_vec();
         buf.append(&mut self.id.to_be_bytes().to_vec());
+        buf.push(self.event_type.into());
 
         if let Some(ref_id) = self.ref_id {
             buf.push(0xFF);
@@ -164,6 +202,8 @@ impl EventHeader {
     pub fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
         Self::read_version(reader)?;
         let id = reader.read_u64::<BigEndian>()?;
+        let event_type_num = reader.read_u8()?;
+        let event_type = EventType::try_from(event_type_num).map_err(|_| Error::CorruptedEvent)?;
         let ref_id = Self::read_ref_id(reader)?;
         let namespace_len = reader.read_u16::<BigEndian>()?;
         let namespace = Self::read_namespace(reader, namespace_len)?;
@@ -171,6 +211,7 @@ impl EventHeader {
 
         Ok(Self {
             id,
+            event_type,
             ref_id,
             namespace,
             name,

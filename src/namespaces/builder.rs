@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::event::Event;
+use crate::event_handler::Response;
 use crate::events::event_handler::EventHandler;
 use crate::ipc::context::Context;
 use crate::namespaces::namespace::Namespace;
@@ -32,7 +33,7 @@ where
         F: for<'a> Fn(
                 &'a Context,
                 Event,
-            ) -> Pin<Box<(dyn Future<Output = Result<()>> + Send + 'a)>>
+            ) -> Pin<Box<(dyn Future<Output = Result<Response>> + Send + 'a)>>
             + Send
             + Sync,
     {

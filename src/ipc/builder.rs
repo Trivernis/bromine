@@ -1,5 +1,7 @@
 use crate::error::{Error, Result};
-use crate::events::error_event::{ErrorEventData, ERROR_EVENT_NAME};
+use crate::error_event::ErrorEventData;
+use crate::event_handler::Response;
+use crate::events::error_event::ERROR_EVENT_NAME;
 use crate::events::event::Event;
 use crate::events::event_handler::EventHandler;
 use crate::ipc::client::IPCClient;
@@ -24,6 +26,7 @@ use typemap_rev::{TypeMap, TypeMapKey};
 /// use typemap_rev::TypeMapKey;
 /// use bromine::IPCBuilder;
 /// use tokio::net::TcpListener;
+/// use bromine::prelude::Response;
 ///
 /// struct CustomKey;
 ///
@@ -37,13 +40,13 @@ use typemap_rev::{TypeMap, TypeMapKey};
 ///    // register callback
 ///     .on("ping", |_ctx, _event| Box::pin(async move {
 ///         println!("Received ping event.");
-///         Ok(())
+///         Ok(Response::empty())
 ///     }))
 ///     // register a namespace    
 ///     .namespace("namespace")
 ///     .on("namespace-event", |_ctx, _event| Box::pin(async move {
 ///         println!("Namespace event.");
-///         Ok(())
+///         Ok(Response::empty())
 ///     }))
 ///     .build()
 ///     // add context shared data
@@ -75,7 +78,7 @@ where
                 tracing::warn!(error_data.code);
                 tracing::warn!("error_data.message = '{}'", error_data.message);
 
-                Ok(())
+                Ok(Response::empty())
             })
         });
         Self {
@@ -102,7 +105,7 @@ where
         F: for<'a> Fn(
                 &'a Context,
                 Event,
-            ) -> Pin<Box<(dyn Future<Output = Result<()>> + Send + 'a)>>
+            ) -> Pin<Box<(dyn Future<Output = Result<Response>> + Send + 'a)>>
             + Send
             + Sync,
     {

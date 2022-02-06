@@ -45,11 +45,7 @@ async fn it_sends_namespaced_events() {
 async fn it_receives_responses() {
     let port = get_free_port();
     let ctx = get_client_with_server(port).await;
-    let reply = ctx
-        .emit("ping", EmptyPayload)
-        .await_reply()
-        .await
-        .unwrap();
+    let reply = ctx.emit("ping", EmptyPayload).await_reply().await.unwrap();
     let counter = get_counter_from_context(&ctx).await;
 
     assert_eq!(reply.name(), "pong");
@@ -108,29 +104,29 @@ fn get_builder(port: u8) -> IPCBuilder<TestProtocolListener> {
         .build()
 }
 
-async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<()> {
+async fn handle_ping_event(ctx: &Context, event: Event) -> IPCResult<Response> {
     increment_counter_for_event(ctx, &event).await;
     ctx.emit("pong", EmptyPayload).await?;
 
-    Ok(())
+    Ok(Response::empty())
 }
 
-async fn handle_pong_event(ctx: &Context, event: Event) -> IPCResult<()> {
+async fn handle_pong_event(ctx: &Context, event: Event) -> IPCResult<Response> {
     increment_counter_for_event(ctx, &event).await;
 
-    Ok(())
+    Ok(Response::empty())
 }
 
-async fn handle_create_error_event(ctx: &Context, event: Event) -> IPCResult<()> {
+async fn handle_create_error_event(ctx: &Context, event: Event) -> IPCResult<Response> {
     increment_counter_for_event(ctx, &event).await;
 
     Err(IPCError::from("Test Error"))
 }
 
-async fn handle_error_event(ctx: &Context, event: Event) -> IPCResult<()> {
+async fn handle_error_event(ctx: &Context, event: Event) -> IPCResult<Response> {
     increment_counter_for_event(ctx, &event).await;
 
-    Ok(())
+    Ok(Response::empty())
 }
 
 pub struct EmptyPayload;

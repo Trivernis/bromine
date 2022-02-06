@@ -6,7 +6,7 @@ use criterion::{
 pub const EVENT_NAME: &str = "bench_event";
 
 fn create_event(data_size: usize) -> Event {
-    Event::new(EVENT_NAME.to_string(), vec![0u8; data_size], None)
+    Event::initiator(None, EVENT_NAME.to_string(), vec![0u8; data_size])
 }
 
 fn event_serialization(c: &mut Criterion) {

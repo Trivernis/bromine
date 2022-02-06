@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::error_event::{ERROR_EVENT_NAME, ErrorEventData};
+use crate::error_event::{ErrorEventData, END_EVENT_NAME, ERROR_EVENT_NAME};
+use crate::event::EventType;
 use crate::events::event_handler::EventHandler;
 use crate::namespaces::namespace::Namespace;
 use crate::prelude::*;
@@ -33,13 +34,19 @@ async fn handle_connection<S: 'static + AsyncProtocolStream>(
             // get the listener for replies
             if let Some(sender) = ctx.get_reply_sender(ref_id).await {
                 // try sending the event to the listener for replies
-                if let Err(event) = sender.send(event) {
-                    handle_event(Context::clone(&ctx), Arc::clone(&handler), event);
+                if let Err(event) = sender.send(event).await {
+                    handle_event(Context::clone(&ctx), Arc::clone(&handler), event.0);
                 }
                 continue;
             }
             tracing::trace!("No response listener found for event. Passing to regular listener.");
         }
+
+        if event.event_type() == EventType::End {
+            tracing::debug!("Received dangling end event with no listener");
+            continue;
+        }
+
         if let Some(namespace) = event.namespace().clone().and_then(|n| namespaces.get(&n)) {
             tracing::trace!("Passing event to namespace listener");
             let handler = Arc::clone(&namespace.handler);
@@ -55,23 +62,41 @@ async fn handle_connection<S: 'static + AsyncProtocolStream>(
 /// Handles a single event in a different tokio context
 fn handle_event(mut ctx: Context, handler: Arc<EventHandler>, event: Event) {
     ctx.set_ref_id(Some(event.id()));
+    let event_id = event.id();
 
     tokio::spawn(async move {
-        if let Err(e) = handler.handle_event(&ctx, event).await {
-            // emit an error event
-            if let Err(e) = ctx
-                .emit(
-                    ERROR_EVENT_NAME,
-                    ErrorEventData {
-                        message: format!("{:?}", e),
-                        code: 500,
-                    },
-                ).await
-            {
-                tracing::error!("Error occurred when sending error response: {:?}", e);
+        match handler.handle_event(&ctx, event).await {
+            Ok(r) => {
+                // emit the response under a unique name to prevent it being interpreted as a new
+                // event initiator
+                if let Err(e) = ctx
+                    .emit_raw(END_EVENT_NAME, None, EventType::End, r.into_byte_payload())
+                    .await
+                {
+                    tracing::error!("Error occurred when sending error response: {:?}", e);
+                }
+                let mut reply_listeners = ctx.reply_listeners.lock().await;
+                reply_listeners.remove(&event_id);
             }
+            Err(e) => {
+                // emit an error event
+                if let Err(e) = ctx
+                    .emit_raw(
+                        ERROR_EVENT_NAME,
+                        None,
+                        EventType::Error,
+                        ErrorEventData {
+                            message: format!("{:?}", e),
+                            code: 500,
+                        },
+                    )
+                    .await
+                {
+                    tracing::error!("Error occurred when sending error response: {:?}", e);
+                }
 
-            tracing::error!("Failed to handle event: {:?}", e);
+                tracing::error!("Failed to handle event: {:?}", e);
+            }
         }
     });
 }

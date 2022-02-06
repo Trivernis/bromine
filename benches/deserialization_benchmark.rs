@@ -9,7 +9,7 @@ use tokio::runtime::Runtime;
 pub const EVENT_NAME: &str = "bench_event";
 
 fn create_event_bytes_reader(data_size: usize) -> Cursor<Vec<u8>> {
-    let bytes = Event::new(EVENT_NAME.to_string(), vec![0u8; data_size], None)
+    let bytes = Event::initiator(None, EVENT_NAME.to_string(), vec![0u8; data_size])
         .into_bytes()
         .unwrap();
     Cursor::new(bytes)
