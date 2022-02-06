@@ -13,7 +13,8 @@ use tokio::sync::Mutex;
 use tracing;
 
 use crate::error::{Error, Result};
-use crate::error_event::{ERROR_EVENT_NAME, ErrorEventData};
+use crate::error_event::{ErrorEventData, ERROR_EVENT_NAME};
+use crate::event::EventType;
 use crate::events::event::Event;
 use crate::ipc::context::Context;
 use crate::payload::IntoPayload;
@@ -25,9 +26,9 @@ macro_rules! poll_unwrap {
             v
         } else {
             tracing::error!("Polling a future with an invalid state.");
-            return Poll::Ready(Err(Error::InvalidState))
+            return Poll::Ready(Err(Error::InvalidState));
         }
-    }
+    };
 }
 
 type SendStream = Arc<Mutex<dyn AsyncWrite + Send + Sync + Unpin + 'static>>;
@@ -55,8 +56,17 @@ impl StreamEmitter {
         event: &str,
         payload: P,
         res_id: Option<u64>,
+        event_type: EventType,
     ) -> EmitMetadata<P> {
-        EmitMetadata::new(ctx, self.stream.clone(), event.to_string(), namespace.map(|n| n.to_string()), payload, res_id)
+        EmitMetadata::new(
+            ctx,
+            self.stream.clone(),
+            event.to_string(),
+            namespace.map(|n| n.to_string()),
+            payload,
+            res_id,
+            event_type,
+        )
     }
 
     /// Emits an event
@@ -67,7 +77,14 @@ impl StreamEmitter {
         event: S,
         payload: P,
     ) -> EmitMetadata<P> {
-        self._emit(ctx, None, event.as_ref(), payload, None)
+        self._emit(
+            ctx,
+            None,
+            event.as_ref(),
+            payload,
+            None,
+            EventType::Initiator,
+        )
     }
 
     /// Emits an event to a specific namespace
@@ -79,7 +96,14 @@ impl StreamEmitter {
         event: S2,
         payload: P,
     ) -> EmitMetadata<P> {
-        self._emit(ctx, Some(namespace.as_ref()), event.as_ref(), payload, None)
+        self._emit(
+            ctx,
+            Some(namespace.as_ref()),
+            event.as_ref(),
+            payload,
+            None,
+            EventType::Initiator,
+        )
     }
 
     /// Emits a response to an event
@@ -91,7 +115,14 @@ impl StreamEmitter {
         event: S,
         payload: P,
     ) -> EmitMetadata<P> {
-        self._emit(ctx, None, event.as_ref(), payload, Some(event_id))
+        self._emit(
+            ctx,
+            None,
+            event.as_ref(),
+            payload,
+            Some(event_id),
+            EventType::Response,
+        )
     }
 
     /// Emits a response to an event to a namespace
@@ -110,6 +141,7 @@ impl StreamEmitter {
             event.as_ref(),
             payload,
             Some(event_id),
+            EventType::Response,
         )
     }
 }
@@ -120,6 +152,7 @@ struct EventMetadata<P: IntoPayload> {
     event_namespace: Option<Option<String>>,
     event_name: Option<String>,
     res_id: Option<Option<u64>>,
+    event_type: Option<EventType>,
     payload: Option<P>,
 }
 
@@ -144,13 +177,17 @@ impl<P: IntoPayload> EventMetadata<P> {
         let namespace = self.event_namespace.take().ok_or(Error::InvalidState)?;
         let payload = self.payload.take().ok_or(Error::InvalidState)?;
         let res_id = self.res_id.take().ok_or(Error::InvalidState)?;
+        let event_type = self.event_type.take().ok_or(Error::InvalidState)?;
         let payload_bytes = payload.into_payload(&ctx)?;
 
-        let event = if let Some(namespace) = namespace {
-            Event::with_namespace(namespace.to_string(), event.to_string(), payload_bytes, res_id)
-        } else {
-            Event::new(event.to_string(), payload_bytes, res_id)
-        };
+        let event = Event::new(
+            namespace,
+            event.to_string(),
+            payload_bytes,
+            res_id,
+            event_type,
+        );
+
         self.event = Some(event);
 
         Ok(())
@@ -164,20 +201,28 @@ impl<P: IntoPayload> EventMetadata<P> {
 pub struct EmitMetadata<P: IntoPayload> {
     event_metadata: Option<EventMetadata<P>>,
     stream: Option<SendStream>,
-    fut: Option<Pin<Box<dyn Future<Output=Result<u64>> + Send + Sync>>>,
+    fut: Option<Pin<Box<dyn Future<Output = Result<u64>> + Send + Sync>>>,
 }
 
 /// A metadata object returned after waiting for a reply to an event
 /// This object needs to be awaited for to get the actual reply
 pub struct EmitMetadataWithResponse<P: IntoPayload> {
     timeout: Option<Duration>,
-    fut: Option<Pin<Box<dyn Future<Output=Result<Event>> + Send + Sync>>>,
+    fut: Option<Pin<Box<dyn Future<Output = Result<Event>> + Send + Sync>>>,
     emit_metadata: Option<EmitMetadata<P>>,
 }
 
 impl<P: IntoPayload> EmitMetadata<P> {
     #[inline]
-    pub(crate) fn new(ctx: Context, stream: SendStream, event_name: String, event_namespace: Option<String>, payload: P, res_id: Option<u64>) -> Self {
+    pub(crate) fn new(
+        ctx: Context,
+        stream: SendStream,
+        event_name: String,
+        event_namespace: Option<String>,
+        payload: P,
+        res_id: Option<u64>,
+        event_type: EventType,
+    ) -> Self {
         Self {
             event_metadata: Some(EventMetadata {
                 event: None,
@@ -186,6 +231,7 @@ impl<P: IntoPayload> EmitMetadata<P> {
                 event_namespace: Some(event_namespace),
                 payload: Some(payload),
                 res_id: Some(res_id),
+                event_type: Some(event_type),
             }),
             stream: Some(stream),
             fut: None,
@@ -226,9 +272,12 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadata<P> {
             let stream = poll_unwrap!(self.stream.take());
 
             let event = match event_metadata.take_event() {
-                Ok(m) => { m }
-                Err(e) => { return Poll::Ready(Err(e)); }
-            }.expect("poll after future was done");
+                Ok(m) => m,
+                Err(e) => {
+                    return Poll::Ready(Err(e));
+                }
+            }
+            .expect("poll after future was done");
 
             self.fut = Some(Box::pin(async move {
                 let event_id = event.id();
@@ -250,23 +299,28 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         if self.fut.is_none() {
             let mut emit_metadata = poll_unwrap!(self.emit_metadata.take());
-            let ctx = poll_unwrap!(emit_metadata.event_metadata.as_ref().and_then(|m| m.ctx.clone()));
-            let timeout = self.timeout.clone().unwrap_or(ctx.default_reply_timeout.clone());
+            let ctx = poll_unwrap!(emit_metadata
+                .event_metadata
+                .as_ref()
+                .and_then(|m| m.ctx.clone()));
+            let timeout = self
+                .timeout
+                .clone()
+                .unwrap_or(ctx.default_reply_timeout.clone());
 
             let event_id = match poll_unwrap!(emit_metadata.event_metadata.as_mut()).get_event() {
-                Ok(e) => { e.id() }
-                Err(e) => { return Poll::Ready(Err(e)); }
+                Ok(e) => e.id(),
+                Err(e) => {
+                    return Poll::Ready(Err(e));
+                }
             };
 
             self.fut = Some(Box::pin(async move {
                 let tx = ctx.register_reply_listener(event_id).await?;
                 emit_metadata.await?;
 
-                let result = future::select(
-                    Box::pin(tx),
-                    Box::pin(tokio::time::sleep(timeout)),
-                )
-                    .await;
+                let result =
+                    future::select(Box::pin(tx), Box::pin(tokio::time::sleep(timeout))).await;
 
                 let reply = match result {
                     Either::Left((tx_result, _)) => Ok(tx_result?),
