@@ -70,8 +70,8 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse
                 .and_then(|m| m.ctx.clone()));
             let timeout = self
                 .timeout
-                .clone()
-                .unwrap_or(ctx.default_reply_timeout.clone());
+                .take()
+                .unwrap_or_else(|| ctx.default_reply_timeout.clone());
 
             let event_id = match poll_unwrap!(emit_metadata.event_metadata.as_mut()).get_event() {
                 Ok(e) => e.id(),

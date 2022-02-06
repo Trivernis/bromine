@@ -3,7 +3,7 @@ use criterion::{criterion_group, criterion_main};
 use criterion::{BatchSize, Criterion};
 use std::io::Cursor;
 
-use bromine::event::{Event};
+use bromine::event::Event;
 use tokio::runtime::Runtime;
 
 pub const EVENT_NAME: &str = "bench_event";
