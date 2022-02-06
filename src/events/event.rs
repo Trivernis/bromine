@@ -41,31 +41,21 @@ impl Event {
     /// Creates a new event that acts as an initiator for further response events
     #[tracing::instrument(level = "trace", skip(data))]
     #[inline]
-    pub(crate) fn initiator(namespace: Option<String>, name: String, data: Vec<u8>) -> Self {
+    pub fn initiator(namespace: Option<String>, name: String, data: Vec<u8>) -> Self {
         Self::new(namespace, name, data, None, EventType::Initiator)
     }
 
     /// Creates a new event that is a response to a previous event
     #[tracing::instrument(level = "trace", skip(data))]
     #[inline]
-    pub(crate) fn response(
-        namespace: Option<String>,
-        name: String,
-        data: Vec<u8>,
-        ref_id: u64,
-    ) -> Self {
+    pub fn response(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
         Self::new(namespace, name, data, Some(ref_id), EventType::Response)
     }
 
     /// Creates a new error event as a response to a previous event
     #[tracing::instrument(level = "trace", skip(data))]
     #[inline]
-    pub(crate) fn error(
-        namespace: Option<String>,
-        name: String,
-        data: Vec<u8>,
-        ref_id: u64,
-    ) -> Self {
+    pub fn error(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
         Self::new(namespace, name, data, Some(ref_id), EventType::Error)
     }
 
@@ -73,7 +63,7 @@ impl Event {
     /// and might contain a final response payload
     #[tracing::instrument(level = "trace", skip(data))]
     #[inline]
-    pub(crate) fn end(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
+    pub fn end(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
         Self::new(namespace, name, data, Some(ref_id), EventType::Response)
     }
 
