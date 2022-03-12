@@ -99,6 +99,13 @@ where
         self
     }
 
+    /// Adds all the data from the other given type map
+    pub fn insert_all(mut self, value: TypeMap) -> Self {
+        self.data.extend(value);
+
+        self
+    }
+
     /// Adds an event callback
     pub fn on<F: 'static>(mut self, event: &str, callback: F) -> Self
     where
