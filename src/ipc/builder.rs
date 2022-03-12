@@ -12,6 +12,7 @@ use crate::namespaces::namespace::Namespace;
 #[cfg(feature = "serialize")]
 use crate::payload::DynamicSerializer;
 use crate::protocol::AsyncStreamProtocolListener;
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -100,7 +101,10 @@ where
     }
 
     /// Adds all the data from the other given type map
-    pub fn insert_all(mut self, value: TypeMap) -> Self {
+    pub fn insert_all<I: IntoIterator<Item = (TypeId, Box<dyn Any + Send + Sync>)>>(
+        mut self,
+        value: I,
+    ) -> Self {
         self.data.extend(value);
 
         self
