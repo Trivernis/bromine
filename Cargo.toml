@@ -1,6 +1,6 @@
 [package]
 name = "bromine"
-version = "0.18.1"
+version = "0.18.2"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 readme = "README.md"
@@ -32,7 +32,6 @@ bincode = { version = "1.3.3", optional = true }
 serde_json = { version = "1.0.79", optional = true }
 
 [dependencies.typemap_rev]
-version = "0.1.5"
 git = "https://github.com/Trivernis/typemap_rev"
 rev = "750c67bffe8024d2a47725daa473f068ad653fc4"
 
