@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use typemap_rev::TypeMapKey;
+use trait_bound_typemap::{TypeMap, TypeMapKey};
 
 pub async fn get_counter_from_context(ctx: &Context) -> CallCounter {
     let data = ctx.data.read().await;

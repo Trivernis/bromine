@@ -12,19 +12,18 @@ use crate::namespaces::namespace::Namespace;
 #[cfg(feature = "serialize")]
 use crate::payload::DynamicSerializer;
 use crate::protocol::AsyncStreamProtocolListener;
-use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use typemap_rev::{TypeMap, TypeMapKey};
+use trait_bound_typemap::{KeyCanExtend, SendSyncTypeMap, TypeMap, TypeMapEntry, TypeMapKey};
 
 /// A builder for the IPC server or client.
 /// ```no_run
 /// use std::net::ToSocketAddrs;
-/// use typemap_rev::TypeMapKey;
+/// use trait_bound_typemap::TypeMapKey;
 /// use bromine::IPCBuilder;
 /// use tokio::net::TcpListener;
 /// use bromine::prelude::Response;
@@ -61,7 +60,7 @@ pub struct IPCBuilder<L: AsyncStreamProtocolListener> {
     handler: EventHandler,
     address: Option<L::AddressType>,
     namespaces: HashMap<String, Namespace>,
-    data: TypeMap,
+    data: SendSyncTypeMap,
     timeout: Duration,
     #[cfg(feature = "serialize")]
     default_serializer: DynamicSerializer,
@@ -86,7 +85,7 @@ where
             handler,
             address: None,
             namespaces: HashMap::new(),
-            data: TypeMap::new(),
+            data: SendSyncTypeMap::new(),
             timeout: Duration::from_secs(60),
             #[cfg(feature = "serialize")]
             default_serializer: DynamicSerializer::first_available(),
@@ -94,14 +93,17 @@ where
     }
 
     /// Adds globally shared data
-    pub fn insert<K: TypeMapKey>(mut self, value: K::Value) -> Self {
+    pub fn insert<K: TypeMapKey>(mut self, value: K::Value) -> Self
+    where
+        <K as TypeMapKey>::Value: Send + Sync,
+    {
         self.data.insert::<K>(value);
 
         self
     }
 
     /// Adds all the data from the other given type map
-    pub fn insert_all<I: IntoIterator<Item = (TypeId, Box<dyn Any + Send + Sync>)>>(
+    pub fn insert_all<I: IntoIterator<Item = TypeMapEntry<K>>, K: KeyCanExtend<SendSyncTypeMap>>(
         mut self,
         value: I,
     ) -> Self {
