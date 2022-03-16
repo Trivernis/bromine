@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use typemap_rev::TypeMap;
+use trait_bound_typemap::SendSyncTypeMap;
 
 /// The IPC Server listening for connections.
 /// Use the [IPCBuilder](crate::builder::IPCBuilder) to create a server.
@@ -21,7 +21,7 @@ use typemap_rev::TypeMap;
 pub struct IPCServer {
     pub(crate) handler: EventHandler,
     pub(crate) namespaces: HashMap<String, Namespace>,
-    pub(crate) data: TypeMap,
+    pub(crate) data: SendSyncTypeMap,
     pub(crate) timeout: Duration,
 
     #[cfg(feature = "serialize")]

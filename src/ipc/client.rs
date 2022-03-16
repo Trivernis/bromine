@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::oneshot;
 use tokio::sync::RwLock;
-use typemap_rev::TypeMap;
+use trait_bound_typemap::SendSyncTypeMap;
 
 #[cfg(feature = "serialize")]
 use crate::payload::DynamicSerializer;
@@ -22,7 +22,7 @@ use crate::payload::DynamicSerializer;
 pub struct IPCClient {
     pub(crate) handler: EventHandler,
     pub(crate) namespaces: HashMap<String, Namespace>,
-    pub(crate) data: Arc<RwLock<TypeMap>>,
+    pub(crate) data: Arc<RwLock<SendSyncTypeMap>>,
     pub(crate) reply_listeners: ReplyListeners,
     pub(crate) timeout: Duration,
 

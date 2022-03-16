@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
 use tokio::time::Duration;
-use typemap_rev::TypeMap;
+use trait_bound_typemap::SendSyncTypeMap;
 
 use crate::error::{Error, Result};
 use crate::event::{Event, EventType};
@@ -38,7 +38,7 @@ pub struct Context {
     emitter: StreamEmitter,
 
     /// Field to store additional context data
-    pub data: Arc<RwLock<TypeMap>>,
+    pub data: Arc<RwLock<SendSyncTypeMap>>,
 
     stop_sender: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 
@@ -55,7 +55,7 @@ pub struct Context {
 impl Context {
     pub(crate) fn new(
         emitter: StreamEmitter,
-        data: Arc<RwLock<TypeMap>>,
+        data: Arc<RwLock<SendSyncTypeMap>>,
         stop_sender: Option<oneshot::Sender<()>>,
         reply_listeners: ReplyListeners,
         reply_timeout: Duration,

@@ -61,7 +61,7 @@
 //! Server Example:
 //! ```no_run
 //! use std::net::ToSocketAddrs;
-//! use typemap_rev::TypeMapKey;
+//! use trait_bound_typemap::{TypeMapKey, TypeMap};
 //! use bromine::IPCBuilder;
 //! use bromine::prelude::*;
 //! use tokio::net::TcpListener;
