@@ -62,8 +62,9 @@ impl AsyncStreamProtocolListener for TestProtocolListener {
     type AddressType = u8;
     type RemoteAddressType = u8;
     type Stream = TestProtocolStream;
+    type ListenerOptions = ();
 
-    async fn protocol_bind(address: Self::AddressType) -> Result<Self> {
+    async fn protocol_bind(address: Self::AddressType, _: Self::ListenerOptions) -> Result<Self> {
         let (sender, receiver) = channel(1);
         add_port(address, sender).await;
 
@@ -170,8 +171,9 @@ impl AsyncProtocolStreamSplit for TestProtocolStream {
 #[async_trait]
 impl AsyncProtocolStream for TestProtocolStream {
     type AddressType = u8;
+    type StreamOptions = ();
 
-    async fn protocol_connect(address: Self::AddressType) -> Result<Self> {
+    async fn protocol_connect(address: Self::AddressType, _: Self::StreamOptions) -> Result<Self> {
         get_port(address)
             .await
             .ok_or_else(|| IPCError::from("Failed to connect"))

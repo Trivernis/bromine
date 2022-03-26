@@ -101,6 +101,7 @@
 //! # }
 //! ```
 
+extern crate core;
 #[cfg(all(
     feature = "serialize",
     not(any(

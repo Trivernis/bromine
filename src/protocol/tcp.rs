@@ -10,8 +10,12 @@ impl AsyncStreamProtocolListener for TcpListener {
     type AddressType = SocketAddr;
     type RemoteAddressType = SocketAddr;
     type Stream = TcpStream;
+    type ListenerOptions = ();
 
-    async fn protocol_bind(address: Self::AddressType) -> IPCResult<Self> {
+    async fn protocol_bind(
+        address: Self::AddressType,
+        _: Self::ListenerOptions,
+    ) -> IPCResult<Self> {
         let listener = TcpListener::bind(address).await?;
 
         Ok(listener)
@@ -36,8 +40,12 @@ impl AsyncProtocolStreamSplit for TcpStream {
 #[async_trait]
 impl AsyncProtocolStream for TcpStream {
     type AddressType = SocketAddr;
+    type StreamOptions = ();
 
-    async fn protocol_connect(address: Self::AddressType) -> IPCResult<Self> {
+    async fn protocol_connect(
+        address: Self::AddressType,
+        _: Self::StreamOptions,
+    ) -> IPCResult<Self> {
         let stream = TcpStream::connect(address).await?;
 
         Ok(stream)

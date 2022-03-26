@@ -31,12 +31,13 @@ pub struct IPCServer {
 impl IPCServer {
     /// Starts the IPC Server.
     /// Invoked by [IPCBuilder::build_server](crate::builder::IPCBuilder::build_server)
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, options))]
     pub async fn start<L: AsyncStreamProtocolListener>(
         self,
         address: L::AddressType,
+        options: L::ListenerOptions,
     ) -> Result<()> {
-        let listener = L::protocol_bind(address.clone()).await?;
+        let listener = L::protocol_bind(address.clone(), options).await?;
         let handler = Arc::new(self.handler);
         let namespaces = Arc::new(self.namespaces);
         let data = Arc::new(RwLock::new(self.data));

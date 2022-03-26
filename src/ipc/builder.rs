@@ -11,6 +11,7 @@ use crate::namespaces::builder::NamespaceBuilder;
 use crate::namespaces::namespace::Namespace;
 #[cfg(feature = "serialize")]
 use crate::payload::DynamicSerializer;
+use crate::prelude::AsyncProtocolStream;
 use crate::protocol::AsyncStreamProtocolListener;
 use std::collections::HashMap;
 use std::future::Future;
@@ -64,6 +65,8 @@ pub struct IPCBuilder<L: AsyncStreamProtocolListener> {
     timeout: Duration,
     #[cfg(feature = "serialize")]
     default_serializer: DynamicSerializer,
+    listener_options: L::ListenerOptions,
+    stream_options: <L::Stream as AsyncProtocolStream>::StreamOptions,
 }
 
 impl<L> IPCBuilder<L>
@@ -89,6 +92,8 @@ where
             timeout: Duration::from_secs(60),
             #[cfg(feature = "serialize")]
             default_serializer: DynamicSerializer::first_available(),
+            listener_options: Default::default(),
+            stream_options: Default::default(),
         }
     }
 
@@ -163,6 +168,23 @@ where
         self
     }
 
+    /// Sets the options for the given protocol listener
+    pub fn server_options(mut self, options: L::ListenerOptions) -> Self {
+        self.listener_options = options;
+
+        self
+    }
+
+    /// Sets the options for the given protocol stream
+    pub fn client_options(
+        mut self,
+        options: <L::Stream as AsyncProtocolStream>::StreamOptions,
+    ) -> Self {
+        self.stream_options = options;
+
+        self
+    }
+
     /// Builds an ipc server
     #[tracing::instrument(skip(self))]
     pub async fn build_server(self) -> Result<()> {
@@ -176,7 +198,9 @@ where
             #[cfg(feature = "serialize")]
             default_serializer: self.default_serializer,
         };
-        server.start::<L>(self.address.unwrap()).await?;
+        server
+            .start::<L>(self.address.unwrap(), self.listener_options)
+            .await?;
 
         Ok(())
     }
@@ -198,7 +222,9 @@ where
             default_serializer: self.default_serializer,
         };
 
-        let ctx = client.connect::<L::Stream>(self.address.unwrap()).await?;
+        let ctx = client
+            .connect::<L::Stream>(self.address.unwrap(), self.stream_options.clone())
+            .await?;
 
         Ok(ctx)
     }
@@ -230,7 +256,9 @@ where
                 default_serializer: self.default_serializer.clone(),
             };
 
-            let ctx = client.connect::<L::Stream>(address.clone()).await?;
+            let ctx = client
+                .connect::<L::Stream>(address.clone(), self.stream_options.clone())
+                .await?;
             contexts.push(ctx);
         }
 

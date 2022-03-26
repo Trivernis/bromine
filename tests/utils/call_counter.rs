@@ -1,3 +1,4 @@
+#![allow(unused)]
 use bromine::context::Context;
 use bromine::event::Event;
 use std::collections::HashMap;

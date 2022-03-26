@@ -33,12 +33,13 @@ pub struct IPCClient {
 impl IPCClient {
     /// Connects to a given address and returns an emitter for events to that address.
     /// Invoked by [IPCBuilder::build_client](crate::builder::IPCBuilder::build_client)
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, options))]
     pub async fn connect<S: AsyncProtocolStream + 'static>(
         self,
         address: S::AddressType,
+        options: S::StreamOptions,
     ) -> Result<Context> {
-        let stream = S::protocol_connect(address).await?;
+        let stream = S::protocol_connect(address, options).await?;
         let (read_half, write_half) = stream.protocol_into_split();
 
         let emitter = StreamEmitter::new::<S>(write_half);
