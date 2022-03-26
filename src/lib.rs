@@ -119,6 +119,12 @@ mod macros;
 mod namespaces;
 pub mod protocol;
 
+/// Reexported for usage in payload implementations
+pub use bytes;
+
+/// Reexported for sharing data in context
+pub use trait_bound_typemap;
+
 pub use events::error_event;
 pub use events::event;
 pub use events::event_handler;
@@ -146,4 +152,5 @@ pub mod prelude {
     pub use crate::payload::*;
     pub use crate::protocol::*;
     pub use crate::*;
+    pub use trait_bound_typemap::TypeMap;
 }

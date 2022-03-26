@@ -91,6 +91,7 @@ mod payload_impl {
     use bromine::payload::{FromPayload, IntoPayload};
     use bromine::prelude::IPCResult;
     use byteorder::{BigEndian, ReadBytesExt};
+    use bytes::{BufMut, Bytes, BytesMut};
     use std::io::Read;
 
     pub struct SimplePayload {
@@ -99,17 +100,13 @@ mod payload_impl {
     }
 
     impl IntoPayload for SimplePayload {
-        fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
-            let mut buf = Vec::new();
-            let string_length = self.string.len() as u16;
-            let string_length_bytes = string_length.to_be_bytes();
-            buf.append(&mut string_length_bytes.to_vec());
-            let mut string_bytes = self.string.into_bytes();
-            buf.append(&mut string_bytes);
-            let num_bytes = self.number.to_be_bytes();
-            buf.append(&mut num_bytes.to_vec());
+        fn into_payload(self, _: &Context) -> IPCResult<Bytes> {
+            let mut buf = BytesMut::new();
+            buf.put_u16(self.string.len() as u16);
+            buf.put(Bytes::from(self.string));
+            buf.put_u32(self.number);
 
-            Ok(buf)
+            Ok(buf.freeze())
         }
     }
 

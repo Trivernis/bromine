@@ -2,6 +2,7 @@ use crate::error::{Error, Result};
 use crate::events::generate_event_id;
 use crate::events::payload::FromPayload;
 use byteorder::{BigEndian, ReadBytesExt};
+use bytes::{BufMut, Bytes, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::convert::TryFrom;
 use std::fmt::Debug;
@@ -16,7 +17,7 @@ pub const FORMAT_VERSION: [u8; 3] = [0, 9, 0];
 #[derive(Debug)]
 pub struct Event {
     header: EventHeader,
-    data: Vec<u8>,
+    data: Bytes,
 }
 
 #[derive(Debug)]
@@ -41,21 +42,21 @@ impl Event {
     /// Creates a new event that acts as an initiator for further response events
     #[tracing::instrument(level = "trace", skip(data))]
     #[inline]
-    pub fn initiator(namespace: Option<String>, name: String, data: Vec<u8>) -> Self {
+    pub fn initiator(namespace: Option<String>, name: String, data: Bytes) -> Self {
         Self::new(namespace, name, data, None, EventType::Initiator)
     }
 
     /// Creates a new event that is a response to a previous event
     #[tracing::instrument(level = "trace", skip(data))]
     #[inline]
-    pub fn response(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
+    pub fn response(namespace: Option<String>, name: String, data: Bytes, ref_id: u64) -> Self {
         Self::new(namespace, name, data, Some(ref_id), EventType::Response)
     }
 
     /// Creates a new error event as a response to a previous event
     #[tracing::instrument(level = "trace", skip(data))]
     #[inline]
-    pub fn error(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
+    pub fn error(namespace: Option<String>, name: String, data: Bytes, ref_id: u64) -> Self {
         Self::new(namespace, name, data, Some(ref_id), EventType::Error)
     }
 
@@ -63,7 +64,7 @@ impl Event {
     /// and might contain a final response payload
     #[tracing::instrument(level = "trace", skip(data))]
     #[inline]
-    pub fn end(namespace: Option<String>, name: String, data: Vec<u8>, ref_id: u64) -> Self {
+    pub fn end(namespace: Option<String>, name: String, data: Bytes, ref_id: u64) -> Self {
         Self::new(namespace, name, data, Some(ref_id), EventType::Response)
     }
 
@@ -72,7 +73,7 @@ impl Event {
     pub(crate) fn new(
         namespace: Option<String>,
         name: String,
-        data: Vec<u8>,
+        data: Bytes,
         ref_id: Option<u64>,
         event_type: EventType,
     ) -> Self {
@@ -145,57 +146,59 @@ impl Event {
         // additional header fields can be added a the end because when reading they will just be ignored
         let header: EventHeader = EventHeader::from_read(&mut Cursor::new(header_bytes))?;
 
-        let mut data = vec![0u8; data_length as usize];
-        reader.read_exact(&mut data).await?;
-        let event = Event { header, data };
+        let mut buf = vec![0u8; data_length as usize];
+        reader.read_exact(&mut buf).await?;
+        let event = Event {
+            header,
+            data: Bytes::from(buf),
+        };
 
         Ok(event)
     }
 
     /// Encodes the event into bytes
     #[tracing::instrument(level = "trace", skip(self))]
-    pub fn into_bytes(mut self) -> Result<Vec<u8>> {
-        let mut header_bytes = self.header.into_bytes();
+    pub fn into_bytes(self) -> Result<Bytes> {
+        let header_bytes = self.header.into_bytes();
         let header_length = header_bytes.len() as u16;
         let data_length = self.data.len();
         let total_length = header_length as u64 + data_length as u64;
         tracing::trace!(total_length, header_length, data_length);
 
-        let mut buf = Vec::with_capacity(total_length as usize);
-        buf.append(&mut total_length.to_be_bytes().to_vec());
-        buf.append(&mut header_length.to_be_bytes().to_vec());
-        buf.append(&mut header_bytes);
-        buf.append(&mut self.data);
+        let mut buf = BytesMut::with_capacity(total_length as usize);
+        buf.put_u64(total_length);
+        buf.put_u16(header_length);
+        buf.put(header_bytes);
+        buf.put(self.data);
 
-        Ok(buf)
+        Ok(buf.freeze())
     }
 }
 
 impl EventHeader {
     /// Serializes the event header into bytes
-    pub fn into_bytes(self) -> Vec<u8> {
-        let mut buf = FORMAT_VERSION.to_vec();
-        buf.append(&mut self.id.to_be_bytes().to_vec());
-        buf.push(self.event_type.into());
+    pub fn into_bytes(self) -> Bytes {
+        let mut buf = BytesMut::with_capacity(256);
+        buf.put_slice(&FORMAT_VERSION);
+        buf.put_u64(self.id);
+        buf.put_u8(u8::from(self.event_type));
 
         if let Some(ref_id) = self.ref_id {
-            buf.push(0xFF);
-            buf.append(&mut ref_id.to_be_bytes().to_vec());
+            buf.put_u8(0xFF);
+            buf.put_u64(ref_id);
         } else {
-            buf.push(0x00);
+            buf.put_u8(0x00);
         }
         if let Some(namespace) = self.namespace {
-            let namespace_len = namespace.len() as u16;
-            buf.append(&mut namespace_len.to_be_bytes().to_vec());
-            buf.append(&mut namespace.into_bytes());
+            buf.put_u16(namespace.len() as u16);
+            buf.put(Bytes::from(namespace));
         } else {
-            buf.append(&mut 0u16.to_be_bytes().to_vec());
+            buf.put_u16(0);
         }
-        let name_len = self.name.len() as u16;
-        buf.append(&mut name_len.to_be_bytes().to_vec());
-        buf.append(&mut self.name.into_bytes());
+        buf.put_u16(self.name.len() as u16);
+        buf.put(Bytes::from(self.name));
 
-        buf
+        buf.freeze()
     }
 
     /// Parses an event header from an async reader

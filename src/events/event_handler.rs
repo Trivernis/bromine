@@ -2,13 +2,14 @@ use crate::error::Result;
 use crate::events::event::Event;
 use crate::ipc::context::Context;
 use crate::payload::{BytePayload, IntoPayload};
+use bytes::Bytes;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-pub struct Response(Vec<u8>);
+pub struct Response(Bytes);
 
 impl Response {
     /// Creates a new response with a given payload
@@ -20,11 +21,11 @@ impl Response {
 
     /// Creates an empty response
     pub fn empty() -> Self {
-        Self(vec![])
+        Self(Bytes::new())
     }
 
     pub(crate) fn into_byte_payload(self) -> BytePayload {
-        BytePayload::new(self.0)
+        BytePayload::from(self.0)
     }
 }
 

@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use criterion::{black_box, BenchmarkId, Throughput};
 use criterion::{criterion_group, criterion_main};
 use criterion::{BatchSize, Criterion};
@@ -9,17 +10,21 @@ use tokio::runtime::Runtime;
 pub const EVENT_NAME: &str = "bench_event";
 
 fn create_event_bytes_reader(data_size: usize) -> Cursor<Vec<u8>> {
-    let bytes = Event::initiator(None, EVENT_NAME.to_string(), vec![0u8; data_size])
-        .into_bytes()
-        .unwrap();
-    Cursor::new(bytes)
+    let bytes = Event::initiator(
+        None,
+        EVENT_NAME.to_string(),
+        Bytes::from(vec![0u8; data_size]),
+    )
+    .into_bytes()
+    .unwrap();
+    Cursor::new(bytes.to_vec())
 }
 
 fn event_deserialization(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
     let mut group = c.benchmark_group("event_deserialization");
 
-    for size in (0..10)
+    for size in (0..16)
         .step_by(2)
         .map(|i| 1024 * 2u32.pow(i as u32) as usize)
     {

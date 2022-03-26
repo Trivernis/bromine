@@ -37,7 +37,7 @@ impl<P: IntoPayload> EventMetadata<P> {
         let payload = self.payload.take().ok_or(Error::InvalidState)?;
         let res_id = self.res_id.take().ok_or(Error::InvalidState)?;
         let event_type = self.event_type.take().ok_or(Error::InvalidState)?;
-        let payload_bytes = payload.into_payload(&ctx)?;
+        let payload_bytes = payload.into_payload(&ctx)?.into();
 
         let event = Event::new(
             namespace,
