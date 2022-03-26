@@ -14,25 +14,13 @@ use std::time::Duration;
 mod utils;
 
 #[tokio::test]
-async fn it_sends_and_receives() {
-    let ctx = get_client_with_server().await;
-    let mut rng = rand::thread_rng();
-    let mut buffer = vec![0u8; 140];
-    rng.fill_bytes(&mut buffer);
+async fn it_sends_and_receives_smaller_packages() {
+    send_and_receive_bytes(140).await.unwrap();
+}
 
-    let mut stream = ctx
-        .emit("bytes", BytePayload::new(buffer.clone()))
-        .stream_replies()
-        .await
-        .unwrap();
-    let mut count = 0;
-
-    while let Some(Ok(response)) = stream.next().await {
-        let bytes = response.payload::<BytePayload>().unwrap();
-        assert_eq!(bytes.into_inner(), buffer);
-        count += 1;
-    }
-    assert_eq!(count, 100)
+#[tokio::test]
+async fn it_sends_and_receives_larger_packages() {
+    send_and_receive_bytes(1024 * 32).await.unwrap();
 }
 
 #[tokio::test]
@@ -48,6 +36,28 @@ async fn it_sends_and_receives_strings() {
     assert_eq!(&response_string, "Hello World")
 }
 
+async fn send_and_receive_bytes(byte_size: usize) -> IPCResult<()> {
+    let ctx = get_client_with_server().await;
+    let mut rng = rand::thread_rng();
+    let mut buffer = vec![0u8; byte_size];
+    rng.fill_bytes(&mut buffer);
+
+    let mut stream = ctx
+        .emit("bytes", BytePayload::new(buffer.clone()))
+        .stream_replies()
+        .await?;
+    let mut count = 0;
+
+    while let Some(response) = stream.next().await {
+        let bytes = response.unwrap().payload::<BytePayload>()?;
+        assert_eq!(bytes.into_inner(), buffer);
+        count += 1;
+    }
+    assert_eq!(count, 100);
+
+    Ok(())
+}
+
 async fn get_client_with_server() -> Context {
     let port = get_free_port();
 
@@ -59,18 +69,18 @@ fn get_builder(port: u8) -> IPCBuilder<EncryptedListener<TestProtocolListener>> 
         .address(port)
         .on("bytes", callback!(handle_bytes))
         .on("string", callback!(handle_string))
-        .timeout(Duration::from_millis(100))
+        .timeout(Duration::from_secs(10))
 }
 
 async fn handle_bytes(ctx: &Context, event: Event) -> IPCResult<Response> {
     increment_counter_for_event(ctx, &event).await;
-    let bytes = event.payload::<BytePayload>()?.into_bytes();
+    let bytes = event.payload::<BytePayload>()?.into_inner();
 
     for _ in 0u8..99 {
-        ctx.emit("bytes", BytePayload::from(bytes.clone())).await?;
+        ctx.emit("bytes", BytePayload::new(bytes.clone())).await?;
     }
 
-    ctx.response(BytePayload::from(bytes))
+    ctx.response(BytePayload::new(bytes))
 }
 
 async fn handle_string(ctx: &Context, event: Event) -> IPCResult<Response> {

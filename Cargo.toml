@@ -56,6 +56,8 @@ features = ["alloc"]
 rmp-serde = "1.0.0"
 crossbeam-utils = "0.8.7"
 futures = "0.3.21"
+tracing-subscriber = "0.3.9"
+port_check = "0.1.5"
 
 [dev-dependencies.serde]
 version = "1.0.136"

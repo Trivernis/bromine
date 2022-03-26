@@ -6,7 +6,7 @@ use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use rand::thread_rng;
 use rand_core::RngCore;
-use sha2::{Digest, Sha224, Sha256};
+use sha2::{Digest, Sha256};
 use std::io;
 use std::io::ErrorKind;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -38,6 +38,7 @@ impl CipherBox {
     }
 
     /// Encrypts the given message
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn encrypt(&self, data: Bytes) -> io::Result<Bytes> {
         self.cipher
             .encrypt(&self.en_nonce(), &data[..])
@@ -46,6 +47,7 @@ impl CipherBox {
     }
 
     /// Decrypts the given message
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn decrypt(&self, data: Bytes) -> io::Result<Bytes> {
         self.cipher
             .decrypt(&self.de_nonce(), &data[..])
@@ -56,6 +58,7 @@ impl CipherBox {
     /// Updates the stored key.
     /// This must be done simultaneously on server and client side
     /// to keep track of the nonce
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn update_key(&mut self, key: Bytes) {
         let key = Key::from_slice(&key[..]);
         self.cipher = ChaCha20Poly1305::new(key);
@@ -64,6 +67,7 @@ impl CipherBox {
 
     /// Resets the nonce counters.
     /// This must be done simultaneously on server and client side.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn reset_counters(&mut self) {
         self.de_count.store(0, Ordering::SeqCst);
         self.en_count.store(0, Ordering::SeqCst);
@@ -71,22 +75,24 @@ impl CipherBox {
 
     fn en_nonce(&self) -> Nonce {
         let count = self.en_count.fetch_add(1, Ordering::SeqCst);
+        tracing::trace!("encrypted count {}", count);
         nonce_from_number(count)
     }
 
     fn de_nonce(&self) -> Nonce {
         let count = self.de_count.fetch_add(1, Ordering::SeqCst);
+        tracing::trace!("decrypted count {}", count);
         nonce_from_number(count)
     }
 }
 
 /// Generates a nonce from a given number
-/// the nonce is passed through sha224 for pseudo-randomness
+/// The given number is repeated to fit the nonce bytes
 fn nonce_from_number(number: u64) -> Nonce {
     let number_bytes: [u8; 8] = number.to_be_bytes();
-    let sha_bytes = Sha224::digest(&number_bytes).to_vec();
+    let num_vec = number_bytes.repeat(2);
     let mut nonce_bytes = [0u8; 12];
-    nonce_bytes.copy_from_slice(&sha_bytes[..12]);
+    nonce_bytes.copy_from_slice(&num_vec[..12]);
 
     nonce_bytes.into()
 }
@@ -131,6 +137,7 @@ impl<T: AsyncProtocolStream> EncryptedStream<T> {
     }
 }
 
+#[tracing::instrument(level = "debug", skip_all)]
 async fn receive_public_key<T: AsyncProtocolStream>(stream: &mut T) -> IPCResult<PublicKey> {
     let mut pk_buf = [0u8; 32];
     stream.read_exact(&mut pk_buf).await?;
@@ -138,6 +145,7 @@ async fn receive_public_key<T: AsyncProtocolStream>(stream: &mut T) -> IPCResult
     Ok(PublicKey::from(pk_buf))
 }
 
+#[tracing::instrument(level = "debug", skip_all)]
 async fn send_public_key<T: AsyncProtocolStream>(
     stream: &mut T,
     secret: &StaticSecret,
@@ -149,6 +157,7 @@ async fn send_public_key<T: AsyncProtocolStream>(
     Ok(())
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 fn generate_secret() -> Vec<u8> {
     let mut rng = thread_rng();
     let mut buf = vec![0u8; 32];

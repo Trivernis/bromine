@@ -9,7 +9,7 @@ use rand_core::RngCore;
 use std::future::Future;
 use std::io;
 use std::pin::Pin;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, BufReader, BufWriter};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 use x25519_dalek::{SharedSecret, StaticSecret};
 
 use crate::prelude::encrypted::crypt_handling::CipherBox;
@@ -80,8 +80,8 @@ impl<T: AsyncProtocolStream> EncryptedStream<T> {
 }
 
 pub struct EncryptedReadStream<T: AsyncRead> {
-    inner: Option<BufReader<T>>,
-    fut: OptionalFuture<(io::Result<Bytes>, BufReader<T>, CipherBox)>,
+    inner: Option<T>,
+    fut: OptionalFuture<(io::Result<Bytes>, T, CipherBox)>,
     remaining: BytesMut,
     cipher: Option<CipherBox>,
 }
@@ -89,7 +89,7 @@ pub struct EncryptedReadStream<T: AsyncRead> {
 impl<T: 'static + AsyncRead + Unpin + Send + Sync> EncryptedReadStream<T> {
     pub(crate) fn new(inner: T, cipher: CipherBox) -> Self {
         Self {
-            inner: Some(BufReader::new(inner)),
+            inner: Some(inner),
             fut: None,
             remaining: BytesMut::new(),
             cipher: Some(cipher),
@@ -98,18 +98,18 @@ impl<T: 'static + AsyncRead + Unpin + Send + Sync> EncryptedReadStream<T> {
 }
 
 pub struct EncryptedWriteStream<T: 'static + AsyncWrite + Unpin + Send + Sync> {
-    inner: Option<BufWriter<T>>,
+    inner: Option<T>,
     cipher: Option<CipherBox>,
     buffer: BytesMut,
-    fut_write: OptionalFuture<(io::Result<()>, BufWriter<T>, CipherBox)>,
-    fut_flush: OptionalFuture<(io::Result<()>, BufWriter<T>, CipherBox)>,
+    fut_write: OptionalFuture<(io::Result<()>, T, CipherBox)>,
+    fut_flush: OptionalFuture<(io::Result<()>, T, CipherBox)>,
     fut_shutdown: OptionalFuture<io::Result<()>>,
 }
 
 impl<T: 'static + AsyncWrite + Unpin + Send + Sync> EncryptedWriteStream<T> {
     pub(crate) fn new(inner: T, cipher: CipherBox) -> Self {
         Self {
-            inner: Some(BufWriter::new(inner)),
+            inner: Some(inner),
             cipher: Some(cipher),
             buffer: BytesMut::with_capacity(1024),
             fut_write: None,
