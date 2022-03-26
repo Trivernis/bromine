@@ -13,8 +13,9 @@ impl AsyncStreamProtocolListener for UnixListener {
     type AddressType = PathBuf;
     type RemoteAddressType = SocketAddr;
     type Stream = UnixStream;
+    type ListenerOptions = ();
 
-    async fn protocol_bind(address: Self::AddressType) -> Result<Self> {
+    async fn protocol_bind(address: Self::AddressType, _: Self::ListenerOptions) -> Result<Self> {
         let listener = UnixListener::bind(address)?;
 
         Ok(listener)
@@ -39,8 +40,12 @@ impl AsyncProtocolStreamSplit for UnixStream {
 #[async_trait]
 impl AsyncProtocolStream for UnixStream {
     type AddressType = PathBuf;
+    type StreamOptions = ();
 
-    async fn protocol_connect(address: Self::AddressType) -> IPCResult<Self> {
+    async fn protocol_connect(
+        address: Self::AddressType,
+        _: Self::StreamOptions,
+    ) -> IPCResult<Self> {
         let stream = UnixStream::connect(address).await?;
         stream
             .ready(Interest::READABLE | Interest::WRITABLE)

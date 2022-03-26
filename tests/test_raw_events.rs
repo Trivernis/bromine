@@ -2,6 +2,7 @@ mod utils;
 
 use crate::utils::start_server_and_client;
 use bromine::prelude::*;
+use bytes::Bytes;
 use std::time::Duration;
 use utils::call_counter::*;
 use utils::get_free_port;
@@ -132,7 +133,7 @@ async fn handle_error_event(ctx: &Context, event: Event) -> IPCResult<Response> 
 pub struct EmptyPayload;
 
 impl IntoPayload for EmptyPayload {
-    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
-        Ok(vec![])
+    fn into_payload(self, _: &Context) -> IPCResult<Bytes> {
+        Ok(Bytes::new())
     }
 }

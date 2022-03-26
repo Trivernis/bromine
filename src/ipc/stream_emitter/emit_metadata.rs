@@ -91,6 +91,7 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadata<P> {
                 let event_bytes = event.into_bytes()?;
                 let mut stream = stream.lock().await;
                 stream.deref_mut().write_all(&event_bytes[..]).await?;
+                stream.deref_mut().flush().await?;
                 tracing::trace!(bytes_len = event_bytes.len());
 
                 Ok(event_id)

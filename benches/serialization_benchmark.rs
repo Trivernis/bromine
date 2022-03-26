@@ -1,4 +1,5 @@
 use bromine::event::Event;
+use bytes::Bytes;
 use criterion::{
     black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
 };
@@ -6,13 +7,17 @@ use criterion::{
 pub const EVENT_NAME: &str = "bench_event";
 
 fn create_event(data_size: usize) -> Event {
-    Event::initiator(None, EVENT_NAME.to_string(), vec![0u8; data_size])
+    Event::initiator(
+        None,
+        EVENT_NAME.to_string(),
+        Bytes::from(vec![0u8; data_size]),
+    )
 }
 
 fn event_serialization(c: &mut Criterion) {
     let mut group = c.benchmark_group("event_serialization");
 
-    for size in (0..10)
+    for size in (0..16)
         .step_by(2)
         .map(|i| 1024 * 2u32.pow(i as u32) as usize)
     {

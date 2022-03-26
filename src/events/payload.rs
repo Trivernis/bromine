@@ -1,5 +1,6 @@
 use crate::prelude::IPCResult;
 use byteorder::{BigEndian, ReadBytesExt};
+use bytes::{BufMut, Bytes, BytesMut};
 use std::io::Read;
 
 #[cfg(feature = "serialize")]
@@ -7,18 +8,13 @@ pub use super::payload_serializer::*;
 
 /// Trait that serializes a type into bytes and can fail
 pub trait TryIntoBytes {
-    fn try_into_bytes(self) -> IPCResult<Vec<u8>>;
-}
-
-/// Trait that serializes a type into bytes and never fails
-pub trait IntoBytes {
-    fn into_bytes(self) -> Vec<u8>;
+    fn try_into_bytes(self) -> IPCResult<Bytes>;
 }
 
 /// Trait to convert event data into sending bytes
 /// It is implemented for all types that implement Serialize
 pub trait IntoPayload {
-    fn into_payload(self, ctx: &Context) -> IPCResult<Vec<u8>>;
+    fn into_payload(self, ctx: &Context) -> IPCResult<Bytes>;
 }
 
 /// Trait to get the event data from receiving bytes.
@@ -31,25 +27,39 @@ pub trait FromPayload: Sized {
 /// serializing them
 #[derive(Clone)]
 pub struct BytePayload {
-    bytes: Vec<u8>,
+    bytes: Bytes,
 }
 
 impl BytePayload {
     #[inline]
     pub fn new(bytes: Vec<u8>) -> Self {
-        Self { bytes }
+        Self {
+            bytes: Bytes::from(bytes),
+        }
     }
 
-    /// Returns the bytes of the payload
+    /// Returns the bytes as a `Vec<u8>` of the payload
     #[inline]
     pub fn into_inner(self) -> Vec<u8> {
+        self.bytes.to_vec()
+    }
+
+    /// Returns the bytes struct of the payload
+    #[inline]
+    pub fn into_bytes(self) -> Bytes {
         self.bytes
+    }
+}
+
+impl From<Bytes> for BytePayload {
+    fn from(bytes: Bytes) -> Self {
+        Self { bytes }
     }
 }
 
 impl IntoPayload for BytePayload {
     #[inline]
-    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
+    fn into_payload(self, _: &Context) -> IPCResult<Bytes> {
         Ok(self.bytes)
     }
 }
@@ -87,20 +97,18 @@ impl<P1, P2> TandemPayload<P1, P2> {
 }
 
 impl<P1: IntoPayload, P2: IntoPayload> IntoPayload for TandemPayload<P1, P2> {
-    fn into_payload(self, ctx: &Context) -> IPCResult<Vec<u8>> {
-        let mut p1_bytes = self.load1.into_payload(&ctx)?;
-        let mut p2_bytes = self.load2.into_payload(&ctx)?;
+    fn into_payload(self, ctx: &Context) -> IPCResult<Bytes> {
+        let p1_bytes = self.load1.into_payload(&ctx)?;
+        let p2_bytes = self.load2.into_payload(&ctx)?;
 
-        let mut p1_length_bytes = (p1_bytes.len() as u64).to_be_bytes().to_vec();
-        let mut p2_length_bytes = (p2_bytes.len() as u64).to_be_bytes().to_vec();
+        let mut bytes = BytesMut::with_capacity(p1_bytes.len() + p2_bytes.len() + 16);
 
-        let mut bytes = Vec::new();
-        bytes.append(&mut p1_length_bytes);
-        bytes.append(&mut p1_bytes);
-        bytes.append(&mut p2_length_bytes);
-        bytes.append(&mut p2_bytes);
+        bytes.put_u64(p1_bytes.len() as u64);
+        bytes.put(p1_bytes);
+        bytes.put_u64(p2_bytes.len() as u64);
+        bytes.put(p2_bytes);
 
-        Ok(bytes)
+        Ok(bytes.freeze())
     }
 }
 
@@ -123,8 +131,8 @@ impl<P1: FromPayload, P2: FromPayload> FromPayload for TandemPayload<P1, P2> {
 
 #[cfg(not(feature = "serialize"))]
 impl IntoPayload for () {
-    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
-        Ok(vec![])
+    fn into_payload(self, _: &Context) -> IPCResult<Bytes> {
+        Ok(Bytes::new())
     }
 }
 
@@ -135,6 +143,7 @@ mod serde_payload {
     use crate::payload::{FromPayload, TryIntoBytes};
     use crate::prelude::{IPCResult, IntoPayload};
     use byteorder::ReadBytesExt;
+    use bytes::{BufMut, Bytes, BytesMut};
     use serde::de::DeserializeOwned;
     use serde::Serialize;
     use std::io::Read;
@@ -168,20 +177,20 @@ mod serde_payload {
     }
 
     impl<T: Serialize> TryIntoBytes for SerdePayload<T> {
-        fn try_into_bytes(self) -> IPCResult<Vec<u8>> {
-            let mut buf = Vec::new();
-            let mut data_bytes = self.serializer.serialize(self.data)?;
+        fn try_into_bytes(self) -> IPCResult<Bytes> {
+            let mut buf = BytesMut::new();
+            let data_bytes = self.serializer.serialize(self.data)?;
             let format_id = self.serializer as u8;
-            buf.push(format_id);
-            buf.append(&mut data_bytes);
+            buf.put_u8(format_id);
+            buf.put(data_bytes);
 
-            Ok(buf)
+            Ok(buf.freeze())
         }
     }
 
     impl<T: Serialize> IntoPayload for SerdePayload<T> {
         #[inline]
-        fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
+        fn into_payload(self, _: &Context) -> IPCResult<Bytes> {
             self.try_into_bytes()
         }
     }
@@ -198,7 +207,7 @@ mod serde_payload {
 
     impl<T: Serialize> IntoPayload for T {
         #[inline]
-        fn into_payload(self, ctx: &Context) -> IPCResult<Vec<u8>> {
+        fn into_payload(self, ctx: &Context) -> IPCResult<Bytes> {
             ctx.create_serde_payload(self).into_payload(&ctx)
         }
     }

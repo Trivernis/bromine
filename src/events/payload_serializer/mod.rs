@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::io::Read;
@@ -49,7 +50,7 @@ pub enum SerializationError {
     UnknownFormat(usize),
 }
 
-#[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq)]
 pub enum DynamicSerializer {
     Messagepack,
     Bincode,
@@ -109,7 +110,7 @@ impl DynamicSerializer {
         }
     }
 
-    pub fn serialize<T: Serialize>(&self, data: T) -> SerializationResult<Vec<u8>> {
+    pub fn serialize<T: Serialize>(&self, data: T) -> SerializationResult<Bytes> {
         match self {
             #[cfg(feature = "serialize_rmp")]
             DynamicSerializer::Messagepack => serialize_rmp::serialize(data),

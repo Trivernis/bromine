@@ -3,6 +3,7 @@ use crate::error::Result;
 use crate::payload::{FromPayload, IntoPayload};
 use crate::prelude::{IPCError, IPCResult};
 use byteorder::{BigEndian, ReadBytesExt};
+use bytes::{BufMut, Bytes, BytesMut};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::io::Read;
@@ -29,14 +30,13 @@ impl Display for ErrorEventData {
 }
 
 impl IntoPayload for ErrorEventData {
-    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
-        let mut buf = Vec::new();
-        buf.append(&mut self.code.to_be_bytes().to_vec());
-        let message_len = self.message.len() as u32;
-        buf.append(&mut message_len.to_be_bytes().to_vec());
-        buf.append(&mut self.message.into_bytes());
+    fn into_payload(self, _: &Context) -> IPCResult<Bytes> {
+        let mut buf = BytesMut::new();
+        buf.put_u16(self.code);
+        buf.put_u32(self.message.len() as u32);
+        buf.put(Bytes::from(self.message));
 
-        Ok(buf)
+        Ok(buf.freeze())
     }
 }
 

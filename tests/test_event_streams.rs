@@ -3,6 +3,7 @@ use crate::utils::protocol::TestProtocolListener;
 use crate::utils::{get_free_port, start_server_and_client};
 use bromine::prelude::*;
 use byteorder::ReadBytesExt;
+use bytes::Bytes;
 use futures::StreamExt;
 use std::io::Read;
 use std::time::Duration;
@@ -66,16 +67,16 @@ async fn handle_stream_event(ctx: &Context, event: Event) -> IPCResult<Response>
 pub struct EmptyPayload;
 
 impl IntoPayload for EmptyPayload {
-    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
-        Ok(vec![])
+    fn into_payload(self, _: &Context) -> IPCResult<Bytes> {
+        Ok(Bytes::new())
     }
 }
 
 pub struct NumberPayload(u8);
 
 impl IntoPayload for NumberPayload {
-    fn into_payload(self, _: &Context) -> IPCResult<Vec<u8>> {
-        Ok(vec![self.0])
+    fn into_payload(self, _: &Context) -> IPCResult<Bytes> {
+        Ok(Bytes::from(vec![self.0]))
     }
 }
 
