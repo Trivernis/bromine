@@ -1,3 +1,4 @@
+#![cfg(feature = "encryption_layer")]
 use crate::utils::call_counter::increment_counter_for_event;
 use crate::utils::protocol::TestProtocolListener;
 use crate::utils::{get_free_port, start_server_and_client};
