@@ -249,7 +249,7 @@ where
                 namespaces: self.namespaces.clone(),
                 handler: self.handler.clone(),
                 data: Arc::clone(&data),
-                reply_listeners: Arc::clone(&reply_listeners),
+                reply_listeners: reply_listeners.clone(),
                 timeout: self.timeout.clone(),
 
                 #[cfg(feature = "serialize")]
