@@ -5,7 +5,7 @@ mod protocol_impl;
 use bytes::{BufMut, Bytes, BytesMut};
 pub use io_impl::*;
 pub use protocol_impl::*;
-use rand_core::RngCore;
+use rand::RngCore;
 use std::future::Future;
 use std::io;
 use std::pin::Pin;

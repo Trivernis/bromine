@@ -79,6 +79,5 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse
 }
 
 pub(crate) async fn remove_reply_listener(ctx: &Context, event_id: u64) {
-    let mut listeners = ctx.reply_listeners.lock().await;
-    listeners.remove(&event_id);
+    ctx.reply_listeners.remove(&event_id);
 }

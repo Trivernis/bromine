@@ -1,5 +1,6 @@
 pub mod tcp;
 
+#[cfg(feature = "encryption_layer")]
 pub mod encrypted;
 #[cfg(unix)]
 pub mod unix_socket;

@@ -75,8 +75,7 @@ fn handle_event(mut ctx: Context, handler: Arc<EventHandler>, event: Event) {
                 {
                     tracing::error!("Error occurred when sending error response: {:?}", e);
                 }
-                let mut reply_listeners = ctx.reply_listeners.lock().await;
-                reply_listeners.remove(&event_id);
+                ctx.reply_listeners.remove(&event_id);
             }
             Err(e) => {
                 // emit an error event

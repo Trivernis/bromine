@@ -29,12 +29,14 @@ async fn it_receives_responses() {
         .unwrap();
 
     for i in 0u8..=100 {
-        if let Some(Ok(event)) = reply_stream.next().await {
+        if let Some(result) = reply_stream.next().await {
+            let event = result.unwrap();
             assert_eq!(event.payload::<NumberPayload>().unwrap().0, i)
         } else {
             panic!("stream 1 has no value {}", i);
         }
-        if let Some(Ok(event)) = reply_stream_2.next().await {
+        if let Some(result) = reply_stream_2.next().await {
+            let event = result.unwrap();
             assert_eq!(event.payload::<NumberPayload>().unwrap().0, i)
         } else {
             panic!("stream 2 has no value {}", i);

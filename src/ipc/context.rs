@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use dashmap::DashMap;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -18,7 +18,7 @@ use crate::payload::IntoPayload;
 use crate::payload::{DynamicSerializer, SerdePayload};
 use crate::prelude::Response;
 
-pub(crate) type ReplyListeners = Arc<Mutex<HashMap<u64, mpsc::Sender<Event>>>>;
+pub(crate) type ReplyListeners = Arc<DashMap<u64, mpsc::Sender<Event>>>;
 
 /// An object provided to each callback function.
 /// Currently it only holds the event emitter to emit response events in event callbacks.
@@ -126,10 +126,7 @@ impl Context {
     #[tracing::instrument(level = "debug", skip(self))]
     pub(crate) async fn register_reply_listener(&self, event_id: u64) -> Result<Receiver<Event>> {
         let (rx, tx) = mpsc::channel(8);
-        {
-            let mut listeners = self.reply_listeners.lock().await;
-            listeners.insert(event_id, rx);
-        }
+        self.reply_listeners.insert(event_id, rx);
 
         Ok(tx)
     }
@@ -154,8 +151,7 @@ impl Context {
     /// Returns the channel for a reply to the given message id
     #[inline]
     pub(crate) async fn get_reply_sender(&self, ref_id: u64) -> Option<mpsc::Sender<Event>> {
-        let listeners = self.reply_listeners.lock().await;
-        listeners.get(&ref_id).cloned()
+        self.reply_listeners.get(&ref_id).map(|e| e.value().clone())
     }
 
     #[inline]
