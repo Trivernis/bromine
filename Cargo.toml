@@ -1,6 +1,6 @@
 [package]
 name = "bromine"
-version = "0.20.1"
+version = "0.20.2"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 readme = "README.md"
@@ -46,7 +46,7 @@ features = []
 
 [dependencies.tokio]
 version = "1.17.0"
-features = ["net", "io-std", "io-util", "sync", "time", "macros"]
+features = ["net", "io-std", "io-util", "sync", "time", "macros", "rt"]
 
 [dependencies.postcard]
 version = "0.7.3"
