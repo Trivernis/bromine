@@ -83,7 +83,7 @@ impl Context {
     ) -> EmitMetadata<P> {
         self.emitter.emit_raw(
             self.clone(),
-            self.ref_id.clone(),
+            self.ref_id,
             name,
             namespace,
             event_type,

@@ -43,7 +43,7 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse
             let timeout = self
                 .timeout
                 .take()
-                .unwrap_or_else(|| ctx.default_reply_timeout.clone());
+                .unwrap_or(ctx.default_reply_timeout);
 
             let event_id = match poll_unwrap!(emit_metadata.event_metadata.as_mut()).get_event() {
                 Ok(e) => e.id(),
@@ -58,7 +58,7 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse
 
                 let reply = tokio::select! {
                     tx_result = tx.recv() => {
-                        Ok(tx_result.ok_or_else(|| Error::SendError)?)
+                        tx_result.ok_or(Error::SendError)
                     }
                     _ = tokio::time::sleep(timeout) => {
                         Err(Error::Timeout)

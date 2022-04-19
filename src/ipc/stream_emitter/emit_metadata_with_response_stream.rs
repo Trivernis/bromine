@@ -10,15 +10,18 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
 use std::time::Duration;
+use futures_core::future::BoxFuture;
 use tokio::sync::mpsc::Receiver;
 
 /// A metadata object returned after waiting for a reply to an event
 /// This object needs to be awaited for to get the actual reply
 pub struct EmitMetadataWithResponseStream<P: IntoPayload> {
     pub(crate) timeout: Option<Duration>,
-    pub(crate) fut: Option<Pin<Box<dyn Future<Output = Result<ResponseStream>> + Send + Sync>>>,
+    pub(crate) fut: Option<BoxFuture<'static, Result<ResponseStream>>>,
     pub(crate) emit_metadata: Option<EmitMetadata<P>>,
 }
+
+type StreamFutureResult = Result<(Option<Event>, Context, Receiver<Event>)>;
 
 /// An asynchronous stream one can read all responses to a specific event from.
 pub struct ResponseStream {
@@ -26,7 +29,7 @@ pub struct ResponseStream {
     ctx: Option<Context>,
     receiver: Option<Receiver<Event>>,
     timeout: Duration,
-    fut: Option<Pin<Box<dyn Future<Output = Result<(Option<Event>, Context, Receiver<Event>)>>>>>,
+    fut: Option<BoxFuture<'static, StreamFutureResult>>,
 }
 
 impl ResponseStream {
@@ -71,7 +74,7 @@ impl<P: IntoPayload + Send + Sync + 'static> Future for EmitMetadataWithResponse
             let timeout = self
                 .timeout
                 .take()
-                .unwrap_or_else(|| ctx.default_reply_timeout.clone());
+                .unwrap_or(ctx.default_reply_timeout);
 
             let event_id = match poll_unwrap!(emit_metadata.event_metadata.as_mut()).get_event() {
                 Ok(e) => e.id(),

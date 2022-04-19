@@ -103,7 +103,7 @@ impl Event {
     /// It represents the message that is replied to and can be None.
     #[inline]
     pub fn reference_id(&self) -> Option<u64> {
-        self.header.ref_id.clone()
+        self.header.ref_id
     }
 
     /// Decodes the payload to the given type implementing the receive payload trait

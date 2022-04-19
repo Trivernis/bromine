@@ -69,6 +69,12 @@ pub struct IPCBuilder<L: AsyncStreamProtocolListener> {
     stream_options: <L::Stream as AsyncProtocolStream>::StreamOptions,
 }
 
+impl<L: AsyncStreamProtocolListener> Default for IPCBuilder<L> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<L> IPCBuilder<L>
 where
     L: AsyncStreamProtocolListener,
@@ -236,7 +242,7 @@ where
     #[tracing::instrument(skip(self))]
     pub async fn build_pooled_client(self, pool_size: usize) -> Result<PooledContext> {
         if pool_size == 0 {
-            Error::BuildError("Pool size must be greater than 0".to_string());
+            return Err(Error::BuildError("Pool size must be greater than 0".to_string()));
         }
         self.validate()?;
         let data = Arc::new(RwLock::new(self.data));
@@ -250,7 +256,7 @@ where
                 handler: self.handler.clone(),
                 data: Arc::clone(&data),
                 reply_listeners: reply_listeners.clone(),
-                timeout: self.timeout.clone(),
+                timeout: self.timeout,
 
                 #[cfg(feature = "serialize")]
                 default_serializer: self.default_serializer.clone(),

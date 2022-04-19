@@ -48,7 +48,7 @@ impl IPCServer {
             let handler = Arc::clone(&handler);
             let namespaces = Arc::clone(&namespaces);
             let data = Arc::clone(&data);
-            let timeout = self.timeout.clone();
+            let timeout = self.timeout;
             #[cfg(feature = "serialize")]
             let default_serializer = self.default_serializer.clone();
 
@@ -69,7 +69,7 @@ impl IPCServer {
                     default_serializer.clone(),
                 );
                 #[cfg(not(feature = "serialize"))]
-                let ctx = Context::new(emitter, data, None, reply_listeners, timeout.into());
+                let ctx = Context::new(emitter, data, None, reply_listeners, timeout);
 
                 handle_connection::<L::Stream>(namespaces, handler, read_half, ctx).await;
             });
