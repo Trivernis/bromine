@@ -2,6 +2,14 @@
 bromine
 </h1>
 <p align="center">
+    <a href="https://crates.io/crates/bromine">
+        <img src="https://img.shields.io/crates/v/bromine?style=for-the-badge">
+    </a>
+    <a href="https://docs.rs/bromine">
+        <img src="https://img.shields.io/docsrs/bromine?style=for-the-badge">
+    </a>
+</p>
+<p align="center">
 Asynchronous event driven interprocess communication supporting tcp and unix domain sockets.
 </p>
 
@@ -137,10 +145,6 @@ async fn main() {
         .build_server().await.unwrap();
 }
 ```
-
-## Benchmarks
-
-Benchmarks are generated on each commit. They can be reviewed [here](https://trivernis.github.io/rmp-ipc/report/).
 
 ## License
 
