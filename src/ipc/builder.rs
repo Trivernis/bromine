@@ -98,8 +98,8 @@ where
             timeout: Duration::from_secs(60),
             #[cfg(feature = "serialize")]
             default_serializer: DynamicSerializer::first_available(),
-            listener_options: Default::default(),
-            stream_options: Default::default(),
+            listener_options: L::ListenerOptions::default(),
+            stream_options: <L::Stream as AsyncProtocolStream>::StreamOptions::default(),
         }
     }
 
