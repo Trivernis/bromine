@@ -18,13 +18,12 @@ impl<T: AsyncStreamProtocolListener> AsyncStreamProtocolListener for EncryptedLi
     ) -> IPCResult<Self> {
         let inner = T::protocol_bind(address, options.inner_options).await?;
 
-        Ok(EncryptedListener::new(inner, options.secret))
+        Ok(EncryptedListener::new(inner, options.keys))
     }
 
     async fn protocol_accept(&self) -> IPCResult<(Self::Stream, Self::RemoteAddressType)> {
         let (inner_stream, remote_addr) = self.inner.protocol_accept().await?;
-        let stream =
-            Self::Stream::from_server_key_exchange(inner_stream, self.secret.clone()).await?;
+        let stream = Self::Stream::from_server_key_exchange(inner_stream, &self.keys).await?;
 
         Ok((stream, remote_addr))
     }
@@ -40,7 +39,7 @@ impl<T: AsyncProtocolStream> AsyncProtocolStream for EncryptedStream<T> {
         options: Self::StreamOptions,
     ) -> Result<Self> {
         let inner = T::protocol_connect(address, options.inner_options).await?;
-        EncryptedStream::from_client_key_exchange(inner, options.secret).await
+        EncryptedStream::from_client_key_exchange(inner, &options.keys).await
     }
 }
 

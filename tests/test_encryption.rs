@@ -1,18 +1,37 @@
 #![cfg(feature = "encryption_layer")]
+
 use crate::utils::call_counter::increment_counter_for_event;
 use crate::utils::protocol::TestProtocolListener;
 use crate::utils::{get_free_port, start_server_and_client};
-use bromine::prelude::encrypted::EncryptedListener;
+use bromine::prelude::encrypted::{EncryptedListener, EncryptionOptions, Keys};
 use bromine::prelude::*;
+use bromine::utils::generate_secret;
 use bromine::IPCBuilder;
 use byteorder::{BigEndian, ReadBytesExt};
 use bytes::{BufMut, Bytes, BytesMut};
+use dashmap::DashMap;
 use futures::StreamExt;
+use lazy_static::lazy_static;
 use rand_core::RngCore;
 use std::io::Read;
 use std::time::Duration;
+use x25519_dalek::{PublicKey, StaticSecret};
 
 mod utils;
+
+pub fn get_secret<S: AsRef<str>>(name: S) -> StaticSecret {
+    lazy_static! {
+        static ref KEYS: DashMap<String, StaticSecret> = DashMap::new();
+    }
+    if KEYS.contains_key(name.as_ref()) {
+        KEYS.get(name.as_ref()).as_ref().unwrap().value().clone()
+    } else {
+        let secret = generate_secret();
+        KEYS.insert(name.as_ref().to_string(), secret.clone());
+
+        secret
+    }
+}
 
 #[tokio::test]
 async fn it_sends_and_receives_smaller_packages() {
@@ -66,7 +85,27 @@ async fn get_client_with_server() -> Context {
 }
 
 fn get_builder(port: u8) -> IPCBuilder<EncryptedListener<TestProtocolListener>> {
+    let server_secret = get_secret(format!("server-{}", port));
+    let client_secret = get_secret(format!("client-{}", port));
+    let client_keys = Keys {
+        secret: client_secret.clone(),
+        known_peers: vec![PublicKey::from(&server_secret)],
+        allow_unknown: false,
+    };
+    let server_keys = Keys {
+        secret: server_secret.clone(),
+        known_peers: vec![PublicKey::from(&client_secret)],
+        allow_unknown: false,
+    };
     IPCBuilder::new()
+        .client_options(EncryptionOptions {
+            keys: client_keys,
+            inner_options: (),
+        })
+        .server_options(EncryptionOptions {
+            keys: server_keys,
+            inner_options: (),
+        })
         .address(port)
         .on("bytes", callback!(handle_bytes))
         .on("string", callback!(handle_string))
