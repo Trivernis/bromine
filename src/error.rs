@@ -1,6 +1,8 @@
 use crate::error_event::ErrorEventData;
 use thiserror::Error;
 use tokio::sync::oneshot;
+#[cfg(feature = "encryption_layer")]
+use x25519_dalek::PublicKey;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -39,6 +41,10 @@ pub enum Error {
 
     #[error("Invalid state")]
     InvalidState,
+
+    #[cfg(feature = "encryption_layer")]
+    #[error("Connection of unknown peer with key {0:?} refused")]
+    UnknownPeer(PublicKey),
 }
 
 impl Error {

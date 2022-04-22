@@ -119,6 +119,7 @@ pub mod ipc;
 mod macros;
 mod namespaces;
 pub mod protocol;
+pub mod utils;
 
 /// Reexported for usage in payload implementations
 pub use bytes;

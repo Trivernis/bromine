@@ -10,7 +10,7 @@ use std::future::Future;
 use std::io;
 use std::pin::Pin;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
-use x25519_dalek::{SharedSecret, StaticSecret};
+use x25519_dalek::{PublicKey, SharedSecret, StaticSecret};
 
 use crate::prelude::encrypted::crypt_handling::CipherBox;
 use crate::prelude::{AsyncProtocolStream, AsyncStreamProtocolListener};
@@ -20,7 +20,14 @@ pub type OptionalFuture<T> = Option<Pin<Box<dyn Future<Output = T> + Send + Sync
 #[derive(Clone)]
 pub struct EncryptionOptions<T: Clone + Default> {
     pub inner_options: T,
+    pub keys: Keys,
+}
+
+#[derive(Clone)]
+pub struct Keys {
     pub secret: StaticSecret,
+    pub known_peers: Vec<PublicKey>,
+    pub allow_unknown: bool,
 }
 
 impl<T: Clone + Default> Default for EncryptionOptions<T> {
@@ -30,7 +37,11 @@ impl<T: Clone + Default> Default for EncryptionOptions<T> {
         rng.fill_bytes(&mut secret);
 
         Self {
-            secret: StaticSecret::from(secret),
+            keys: Keys {
+                known_peers: Vec::new(),
+                allow_unknown: false,
+                secret: StaticSecret::from(secret),
+            },
             inner_options: T::default(),
         }
     }
@@ -38,12 +49,12 @@ impl<T: Clone + Default> Default for EncryptionOptions<T> {
 
 pub struct EncryptedListener<T: AsyncStreamProtocolListener> {
     inner: T,
-    secret: StaticSecret,
+    keys: Keys,
 }
 
 impl<T: AsyncStreamProtocolListener> EncryptedListener<T> {
-    pub fn new(inner: T, secret: StaticSecret) -> Self {
-        Self { inner, secret }
+    pub fn new(inner: T, keys: Keys) -> Self {
+        Self { inner, keys }
     }
 }
 

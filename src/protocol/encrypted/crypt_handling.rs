@@ -1,5 +1,5 @@
-use crate::prelude::encrypted::EncryptedStream;
-use crate::prelude::IPCResult;
+use crate::prelude::encrypted::{EncryptedStream, Keys};
+use crate::prelude::{IPCError, IPCResult};
 use crate::protocol::AsyncProtocolStream;
 use bytes::Bytes;
 use chacha20poly1305::aead::{Aead, NewAead};
@@ -105,15 +105,21 @@ impl<T: AsyncProtocolStream> EncryptedStream<T> {
     /// 4. The server generates a new secret
     /// 5. The server sends the secret to the client
     /// 6. The connection is upgraded with the new shared key
-    pub async fn from_server_key_exchange(mut inner: T, secret: StaticSecret) -> IPCResult<Self> {
+    pub async fn from_server_key_exchange(mut inner: T, keys: &Keys) -> IPCResult<Self> {
         let other_pub = receive_public_key(&mut inner).await?;
-        send_public_key(&mut inner, &secret).await?;
-        let shared_secret = secret.diffie_hellman(&other_pub);
+        tracing::debug!("received peer public key {:?}", other_pub);
+
+        if !keys.allow_unknown && !keys.known_peers.contains(&other_pub) {
+            return Err(IPCError::UnknownPeer(other_pub));
+        }
+        send_public_key(&mut inner, &keys.secret).await?;
+        let shared_secret = keys.secret.diffie_hellman(&other_pub);
         let mut stream = Self::new(inner, shared_secret);
         let permanent_secret = generate_secret();
         stream.write_all(&permanent_secret).await?;
         stream.flush().await?;
         stream.update_key(permanent_secret.into());
+        tracing::debug!("Connection established");
 
         Ok(stream)
     }
@@ -124,14 +130,20 @@ impl<T: AsyncProtocolStream> EncryptedStream<T> {
     /// 3. The client creates an intermediary encrypted connection
     /// 4. The client receives the new key from the server
     /// 5. The connection is upgraded with the new shared key
-    pub async fn from_client_key_exchange(mut inner: T, secret: StaticSecret) -> IPCResult<Self> {
-        send_public_key(&mut inner, &secret).await?;
+    pub async fn from_client_key_exchange(mut inner: T, keys: &Keys) -> IPCResult<Self> {
+        send_public_key(&mut inner, &keys.secret).await?;
         let other_pub = receive_public_key(&mut inner).await?;
-        let shared_secret = secret.diffie_hellman(&other_pub);
+        tracing::debug!("received peer public key {:?}", other_pub);
+
+        if !keys.allow_unknown && !keys.known_peers.contains(&other_pub) {
+            return Err(IPCError::UnknownPeer(other_pub));
+        }
+        let shared_secret = keys.secret.diffie_hellman(&other_pub);
         let mut stream = Self::new(inner, shared_secret);
         let mut key_buf = vec![0u8; 32];
         stream.read_exact(&mut key_buf).await?;
         stream.update_key(key_buf.into());
+        tracing::debug!("Connection established");
 
         Ok(stream)
     }
