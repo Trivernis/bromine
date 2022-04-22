@@ -5,80 +5,80 @@ Total sample time (ms)
 <text x="255" y="285" dy="-0.5ex" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 Iterations (x 10^3)
 </text>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="114" y1="244" x2="114" y2="14"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="154" y1="244" x2="154" y2="14"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="194" y1="244" x2="194" y2="14"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="234" y1="244" x2="234" y2="14"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="274" y1="244" x2="274" y2="14"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="313" y1="244" x2="313" y2="14"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="353" y1="244" x2="353" y2="14"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="393" y1="244" x2="393" y2="14"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="433" y1="244" x2="433" y2="14"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="203" x2="435" y2="203"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="162" x2="435" y2="162"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="121" x2="435" y2="121"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="81" x2="435" y2="81"/>
-<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="40" x2="435" y2="40"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="112" y1="244" x2="112" y2="14"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="149" y1="244" x2="149" y2="14"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="186" y1="244" x2="186" y2="14"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="223" y1="244" x2="223" y2="14"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="260" y1="244" x2="260" y2="14"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="297" y1="244" x2="297" y2="14"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="334" y1="244" x2="334" y2="14"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="371" y1="244" x2="371" y2="14"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="409" y1="244" x2="409" y2="14"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="204" x2="435" y2="204"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="165" x2="435" y2="165"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="126" x2="435" y2="126"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="86" x2="435" y2="86"/>
+<line opacity="0.2" stroke="#000000" stroke-width="1" x1="75" y1="47" x2="435" y2="47"/>
 <polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="74,15 74,245 "/>
-<text x="65" y="203" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<text x="65" y="204" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 5.0
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,203 74,203 "/>
-<text x="65" y="162" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,204 74,204 "/>
+<text x="65" y="165" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 10.0
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,162 74,162 "/>
-<text x="65" y="121" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,165 74,165 "/>
+<text x="65" y="126" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 15.0
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,121 74,121 "/>
-<text x="65" y="81" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,126 74,126 "/>
+<text x="65" y="86" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 20.0
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,81 74,81 "/>
-<text x="65" y="40" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,86 74,86 "/>
+<text x="65" y="47" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 25.0
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,40 74,40 "/>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="69,47 74,47 "/>
 <polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="75,245 435,245 "/>
-<text x="114" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<text x="112" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 5
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="114,245 114,250 "/>
-<text x="154" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="112,245 112,250 "/>
+<text x="149" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 10
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="154,245 154,250 "/>
-<text x="194" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="149,245 149,250 "/>
+<text x="186" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 15
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="194,245 194,250 "/>
-<text x="234" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="186,245 186,250 "/>
+<text x="223" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 20
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="234,245 234,250 "/>
-<text x="274" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="223,245 223,250 "/>
+<text x="260" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 25
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="274,245 274,250 "/>
-<text x="313" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="260,245 260,250 "/>
+<text x="297" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 30
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="313,245 313,250 "/>
-<text x="353" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="297,245 297,250 "/>
+<text x="334" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 35
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="353,245 353,250 "/>
-<text x="393" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="334,245 334,250 "/>
+<text x="371" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 40
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="393,245 393,250 "/>
-<text x="433" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="371,245 371,250 "/>
+<text x="409" y="255" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 45
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="433,245 433,250 "/>
-<polyline fill="none" opacity="1" stroke="#E31A1C" stroke-width="1" points="75,244 435,24 "/>
-<polygon opacity="0.25" fill="#E31A1C" points="75,244 435,25 435,23 "/>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="409,245 409,250 "/>
+<polyline fill="none" opacity="1" stroke="#E31A1C" stroke-width="1" points="75,244 435,16 "/>
+<polygon opacity="0.25" fill="#E31A1C" points="75,244 435,18 435,15 "/>
 <polyline fill="none" opacity="1" stroke="#1F78B4" stroke-width="1" points="75,244 435,15 "/>
 <polygon opacity="0.25" fill="#1F78B4" points="75,244 435,15 435,15 "/>
 </svg>
