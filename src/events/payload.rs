@@ -98,8 +98,8 @@ impl<P1, P2> TandemPayload<P1, P2> {
 
 impl<P1: IntoPayload, P2: IntoPayload> IntoPayload for TandemPayload<P1, P2> {
     fn into_payload(self, ctx: &Context) -> IPCResult<Bytes> {
-        let p1_bytes = self.load1.into_payload(&ctx)?;
-        let p2_bytes = self.load2.into_payload(&ctx)?;
+        let p1_bytes = self.load1.into_payload(ctx)?;
+        let p2_bytes = self.load2.into_payload(ctx)?;
 
         let mut bytes = BytesMut::with_capacity(p1_bytes.len() + p2_bytes.len() + 16);
 

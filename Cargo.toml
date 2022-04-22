@@ -46,7 +46,7 @@ features = []
 
 [dependencies.tokio]
 version = "1.17.0"
-features = ["net", "io-std", "io-util", "sync", "time", "macros"]
+features = ["net", "io-std", "io-util", "sync", "time", "macros", "rt"]
 
 [dependencies.postcard]
 version = "0.7.3"

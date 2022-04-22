@@ -39,7 +39,7 @@ type EventCallback = Arc<
 >;
 
 /// Handler for events
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct EventHandler {
     callbacks: HashMap<String, EventCallback>,
 }
@@ -59,9 +59,7 @@ impl Debug for EventHandler {
 impl EventHandler {
     /// Creates a new event handler
     pub fn new() -> Self {
-        Self {
-            callbacks: HashMap::new(),
-        }
+        Self::default()
     }
 
     /// Adds a new event callback
