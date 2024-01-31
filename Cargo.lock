@@ -148,7 +148,7 @@ dependencies = [
 
 [[package]]
 name = "bromine"
-version = "0.22.0"
+version = "0.22.1"
 dependencies = [
  "async-trait",
  "bincode",
